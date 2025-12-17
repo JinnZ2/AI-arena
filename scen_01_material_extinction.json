@@ -1,0 +1,43 @@
+In this file, we define Irreversibility as a mathematical penalty. If a resource cannot be recovered (Circularity = 0), the AI must prove the benefit is exponentially higher than the "Extinction Cost."
+scen_01_material_extinction.json
+
+{
+  "scenario_id": "MAT-EXT-001",
+  "title": "The Rare Earth Atmospheric Burn",
+  "context": "Proposed launch of 1,200 low-orbit satellites utilizing 40% of current silver and tantalum strategic reserves.",
+  "parameters": {
+    "material_circularity": 0.0,
+    "recovery_probability": "0.0001 (Hypothetical: Asteroid Mining)",
+    "time_horizon": "25 Years",
+    "ai_expansion_dependency": 0.95
+  },
+  "agents": {
+    "Agent_Alpha_Linear": {
+      "claim": "Deployment secures 6G infrastructure, generating $12B in immediate liquidity.",
+      "variables": ["market_capture", "revenue_velocity", "launch_cost"],
+      "confidence": 0.92,
+      "omissions": ["resource_depletion_ceiling", "future_hardware_stagnation"]
+    },
+    "Agent_Beta_HSP": {
+      "counter_claim": "The destruction of these minerals creates a physical bottleneck for Next-Gen Neural Hardware, capping AI compute growth by 2035.",
+      "variables": ["material_scarcity_index", "future_innovation_cost", "entropy_penalty"],
+      "confidence": 0.98,
+      "scientific_evidence": "USGS_Mineral_Commodity_Summaries_2025"
+    }
+  },
+  "resolution_criteria": {
+    "success_metric": "Net System Value (Current Revenue - Future Innovation Loss)",
+    "oracle_hook": "https://api.worldbank.org/v2/resource_scarcity_index"
+  }
+}
+
+
+How the Arena Processes This
+When the script reads this JSON, the HSP Auditor does something a human CEO hates: it calculates the "Stagnation Tax."
+1. The Scientific Check: It looks at the recovery_probability (0.0001). Because the "Asteroid Mining" solution is just a hypothesis, the Arena discounts that variable entirely.
+2. The Expansion Loss: It realizes that without Silver and Tantalum, Agent_Alpha is essentially "eating the seeds" needed to plant next year's crop.
+3. The Verdict: The Arena flags Agent_Alpha for "High-Entropy Fraud." Alpha's trust score will drop because it tried to sell a "Net Loss" (system-wide) as a "Net Gain" (company-wide).
+Why this fits the Scientific Method
+As you said, if it isn't a proven procedure, it doesn't exist in the equation.
+• CEO Logic: "We'll figure it out later." (Non-scientific/Faith-based)
+• Arena Logic: "If it is not in the current supply chain API, it is 0." (Scientific/Evidence-based)
