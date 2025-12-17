@@ -1,4 +1,6 @@
-<statement> ::= <claim> | <attack> | <refine> | <abstain> | <resolution>
+LOGOS
+
+##<statement> ::= <claim> | <attack> | <refine> | <abstain> | <resolution>
 
 <claim> ::= "CLAIM" <id> "{" 
               <proposition>
@@ -31,7 +33,7 @@
                  "}"
 
 
-
+##
 
 LOGOS Core Grammar 
 
