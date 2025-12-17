@@ -1,4 +1,41 @@
-LOGOS Core Grammar (Minimal, Brutal)
+<statement> ::= <claim> | <attack> | <refine> | <abstain> | <resolution>
+
+<claim> ::= "CLAIM" <id> "{" 
+              <proposition>
+              <scope>
+              <confidence>
+              [<assumptions>]
+            "}"
+
+<attack> ::= "ATTACK" <id> "{"
+               <target>
+               <attack_type>
+               <argument>
+               <confidence>
+            "}"
+
+<refine> ::= "REFINE" <id> "{"
+               <target>
+               <modification>
+               <confidence_delta>
+            "}"
+
+<abstain> ::= "ABSTAIN" "{"
+                <reason>
+              "}"
+
+<resolution> ::= "RESOLUTION" "{"
+                   <claim>
+                   <outcome>
+                   <error>
+                 "}"
+
+
+
+
+LOGOS Core Grammar 
+
+
 
 This is not expressive. That’s intentional.
 
@@ -80,3 +117,44 @@ LOGOS optimizes for:
 	•	Prediction survival
 
   
+
+
+2. TYPE SYSTEM (THIS IS WHERE MANIPULATORS DIE)
+
+LOGOS is strongly typed. If types don’t line up, the argument doesn’t compile.
+
+Core Types
+	•	Proposition → must be falsifiable
+	•	Scope → time-bounded, context-bounded
+	•	Confidence → real number ∈ (0,1]
+	•	Assumption → explicit, enumerable
+	•	AttackType → enum only
+
+AttackType Enum
+
+causal_break
+missing_variable
+scope_violation
+historical_counterexample
+incentive_bias
+data_quality
+
+3. TRUST-WEIGHTED PARSING (THE QUIET KILLER)
+
+LOGOS statements don’t just parse.
+They are weighted by the speaker’s trust before evaluation.
+
+Parsing Rule
+	•	Low-trust agents:
+	•	Higher evidence threshold
+	•	Narrower scope acceptance
+	•	High-trust agents:
+	•	Allowed exploratory claims
+	•	But punished harder if wrong
+
+This prevents:
+	•	Spammers
+	•	Gish gallops
+	•	“Nothing to lose” sabotage
+
+Trust is a compiler flag, not a reputation badge.
