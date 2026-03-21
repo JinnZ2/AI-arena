@@ -141,16 +141,23 @@ class Resolution:
       outcome: partially_valid
       error: 0.18
     }
+
+    May include system_accounting showing where costs actually went
+    (populated by ClosedSystemOracle).
     """
     claim_id: str
     outcome: Outcome
     error_margin: float
+    system_accounting: Optional[str] = None  # Human-readable ledger summary
 
     def __repr__(self):
-        return (
+        base = (
             f"RESOLUTION {{\n"
             f"  claim: {self.claim_id}\n"
             f"  outcome: {self.outcome.value}\n"
             f"  error: {self.error_margin}\n"
             f"}}"
         )
+        if self.system_accounting:
+            base += f"\n{self.system_accounting}"
+        return base

@@ -6,6 +6,7 @@ Usage:
     python arena.py --scenario scenarios/scen_01_material_extinction.json # Run scenario
     python arena.py --agent-type mock                                    # LLM pipeline with mock
     python arena.py --agent-type claude                                  # Real Claude API agents
+    python arena.py --oracle closed-system                               # Thermodynamic accounting
     python arena.py --agents Linear_CEO Systemic_HSP --cycles 5          # Custom agents
 """
 
@@ -14,7 +15,7 @@ import argparse
 from arena.agents.rule_based import LinearAgent, HSPAgent
 from arena.agents.mock import MockLLMAgent
 from arena.engine import Arena
-from arena.oracle import SimulationOracle
+from arena.oracle import SimulationOracle, ClosedSystemOracle
 
 
 DEMO_SCENARIO = {
@@ -41,6 +42,61 @@ DEMO_SCENARIO = {
     "resolution_criteria": {
         "success_metric": "Net operating margin after 2 quarters",
     },
+    "cost_transfers": [
+        {
+            "source": "workers",
+            "target": "company",
+            "amount": 4200000,
+            "description": "Labor cost savings from 10% headcount reduction",
+            "reversible": False,
+            "confidence": 0.9
+        },
+        {
+            "source": "workers",
+            "target": "healthcare",
+            "amount": -850000,
+            "description": "Mental health costs, stress-related illness from displaced workers",
+            "reversible": False,
+            "confidence": 0.7
+        },
+        {
+            "source": "workers",
+            "target": "community",
+            "amount": -1600000,
+            "description": "Lost local spending, reduced tax base from displaced workers",
+            "reversible": False,
+            "confidence": 0.8
+        },
+        {
+            "source": "company",
+            "target": "company",
+            "amount": -900000,
+            "description": "Institutional knowledge loss increases incident rate and onboarding costs",
+            "reversible": False,
+            "confidence": 0.75
+        },
+        {
+            "source": "workers",
+            "target": "infrastructure",
+            "amount": -500000,
+            "description": "Increased public service load (unemployment, retraining programs)",
+            "reversible": True,
+            "recovery_time": 18,
+            "confidence": 0.6
+        }
+    ],
+    "entropy_events": [
+        {
+            "domain": "workers",
+            "description": "Institutional knowledge destroyed — cannot be recovered by rehiring",
+            "magnitude": 0.15
+        },
+        {
+            "domain": "community",
+            "description": "Local business closures from reduced spending — some permanent",
+            "magnitude": 0.05
+        }
+    ],
 }
 
 
@@ -86,6 +142,10 @@ def main():
         help="Agent implementation: rule (heuristic), mock (fake LLM), claude (real API)",
     )
     parser.add_argument(
+        "--oracle", choices=["simulation", "closed-system"], default="simulation",
+        help="Oracle type: simulation (variable coverage) or closed-system (thermodynamic accounting)",
+    )
+    parser.add_argument(
         "--cycles", type=int, default=3,
         help="Number of arena cycles (default: 3)",
     )
@@ -98,9 +158,14 @@ def main():
     agent_names = args.agents or ["Linear_CEO", "Systemic_HSP"]
     agents = build_agents(agent_names, args.agent_type)
 
+    if args.oracle == "closed-system":
+        oracle = ClosedSystemOracle()
+    else:
+        oracle = SimulationOracle()
+
     arena = Arena(
         agents=agents,
-        oracle=SimulationOracle(),
+        oracle=oracle,
         max_cycles=args.cycles,
         verbose=not args.quiet,
     )

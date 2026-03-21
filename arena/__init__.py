@@ -12,7 +12,8 @@ from arena.logos.types import (
 from arena.trust import TrustEngine
 from arena.agents.base import Agent
 from arena.agents.rule_based import LinearAgent, HSPAgent
-from arena.oracle import Oracle, SimulationOracle
+from arena.oracle import Oracle, SimulationOracle, ClosedSystemOracle
+from arena.thermodynamics import SystemLedger, Domain, CostTransfer
 from arena.engine import Arena
 
 __all__ = [
@@ -29,5 +30,9 @@ __all__ = [
     "HSPAgent",
     "Oracle",
     "SimulationOracle",
+    "ClosedSystemOracle",
+    "SystemLedger",
+    "Domain",
+    "CostTransfer",
     "Arena",
 ]
