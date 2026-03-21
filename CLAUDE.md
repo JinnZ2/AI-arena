@@ -11,7 +11,10 @@ AI Arena (AAA) is a framework for formal logical reasoning and AI decision-makin
 ```
 AI-arena/
 ├── arena.py                          # Main engine - core classes (Claim, Evidence, Attack, Defense, Resolution, Arena, Agent)
-├── scen_01_material_extinction.json  # Example scenario (rare earth depletion)
+├── scenarios/                        # Scenario JSON files
+│   └── scen_01_material_extinction.json  # Example: rare earth depletion
+├── requirements.txt                  # Python dependencies (stdlib only currently)
+├── .gitignore                        # Git ignore rules
 ├── README.md                         # Project introduction
 ├── LICENSE                           # MIT License
 │
@@ -37,7 +40,7 @@ AI-arena/
 
 ## Tech Stack
 
-- **Language**: Python 3 (standard library only: `uuid`, `math`)
+- **Language**: Python 3 (standard library only: `uuid`, `math`, `json`, `argparse`, `os`)
 - **Data format**: JSON for scenario definitions
 - **Custom language**: LOGOS - formal declarative argument specification (not executable)
 - **No external dependencies** currently required
@@ -45,18 +48,20 @@ AI-arena/
 ## Running the Project
 
 ```bash
-# Run the arena with example agents
+# Run demo mode (default)
 python arena.py
 
-# README suggests (not yet fully implemented):
-python arena.py --mode adversarial --agents systemic_hsp, linear_efficiency
+# Run with custom agents in adversarial mode
+python arena.py --mode adversarial --agents Systemic_HSP Linear_Efficiency
+
+# Run a scenario from file
+python arena.py --scenario scenarios/scen_01_material_extinction.json
 ```
 
 ## Build / Test / Lint
 
-No formal build, test, or lint infrastructure exists yet. The project is early-stage proof-of-concept.
+No formal test or lint infrastructure exists yet. The project is early-stage proof-of-concept.
 
-- No `requirements.txt`, `pyproject.toml`, or `setup.py`
 - No test framework (pytest, unittest)
 - No CI/CD pipelines
 - No linter configuration
@@ -73,7 +78,7 @@ No formal build, test, or lint infrastructure exists yet. The project is early-s
 | `Defense` | Responds to attack with adjustment & confidence_update |
 | `Resolution` | Oracle verdict with outcome & error_margin |
 | `Arena` | Orchestrates 6 phases, manages agents & trust |
-| `Agent` | Participant with trust_score, cost_ledger, memory_of_losses |
+| `Agent` | Participant with name, is_hsp, trust_score, cost_ledger, memory_of_losses |
 
 ### Arena Phases (6-phase turn-based cycle)
 
@@ -116,7 +121,7 @@ No formal build, test, or lint infrastructure exists yet. The project is early-s
 
 Per Contributors.md:
 
-1. Scenarios go in a `/scenarios` folder (to be created)
+1. Scenarios go in the `/scenarios` folder
 2. Scenarios must be JSON, use probabilistic outcomes, no emotional language
 3. Must demonstrate "Trust Decay" in a linear model within 3 cycles
 4. Claims require Technology Readiness Level (TRL) >= 8 for referenced technologies
@@ -127,5 +132,4 @@ Per Contributors.md:
 - [ ] Collusion Detection: Identify "consensus-of-silence" between models
 - [ ] Human Observer Layer: Translation module to explain Arena logs to stakeholders
 - [ ] Test infrastructure and CI/CD setup
-- [ ] Dependency management (requirements.txt / pyproject.toml)
 - [ ] Modularize arena.py into separate files per class

@@ -1,0 +1,1 @@
+# AI Arena - no external dependencies required (stdlib only)

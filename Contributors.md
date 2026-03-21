@@ -24,5 +24,5 @@ When contributing an HSP (Highly Sensitive Predictor) agent logic, ask these thr
 4. Submission Process
 1. Fork the repository.
 2. Add your scenario to the /scenarios folder.
-3. Run the arena_engine.py with your scenario.
+3. Run arena.py with your scenario (e.g., `python arena.py --scenario scenarios/your_scenario.json`).
 4. The Requirement: Your scenario must show a "Trust Decay" in the Linear model within 3 cycles. If the Linear model "wins," you likely haven't identified the correct Shadow Variables yet.
