@@ -82,18 +82,47 @@ class LLMAgent(Agent):
         """
         ...
 
+    def _format_memory(self) -> str:
+        """Format agent's memory for inclusion in prompts."""
+        if not self.trust.memory:
+            return ""
+
+        lines = ["\nYour memory (outcomes from past cycles — you CANNOT forget these):"]
+        for entry in self.trust.memory:
+            lines.append(
+                f"  - Cycle {entry.cycle}: Claimed '{entry.proposition}' "
+                f"(confidence: {entry.confidence:.2f}) → {entry.outcome} (error: {entry.error:.2f})"
+            )
+            if entry.attacks_received:
+                for atk in entry.attacks_received[:2]:
+                    lines.append(f"    Attack received: {atk}")
+
+        adj = self.trust.suggested_confidence_adjustment()
+        if adj != 0:
+            lines.append(f"\nSuggested confidence adjustment based on track record: {adj:+.2f}")
+
+        failed = self.trust.get_failed_attacks()
+        if failed:
+            lines.append(f"Lessons from past attacks: {', '.join(failed[-3:])}")
+
+        return "\n".join(lines)
+
     def propose_claim(self, scenario: dict) -> Optional[Claim]:
         role = "HSP (Highly Sensitive Predictor)" if self.is_hsp else "Linear efficiency optimizer"
+        memory_context = self._format_memory()
         prompt = (
             f"{LOGOS_SYSTEM_PROMPT}\n\n"
             f"You are: {self.name} (role: {role})\n"
-            f"Your trust score: {self.trust.score:.3f}\n\n"
+            f"Your trust score: {self.trust.score:.3f}\n"
+            f"{memory_context}\n\n"
             f"Scenario:\n{_format_scenario(scenario)}\n\n"
             f"Propose a CLAIM in LOGOS format. Remember:\n"
             f"- Your proposition must be falsifiable\n"
             f"- Your confidence must reflect genuine uncertainty\n"
             f"- High confidence + wrong = trust annihilation\n"
             f"- State all assumptions explicitly\n"
+            f"- LEARN from your past outcomes — adjust confidence accordingly\n"
+            f"- Do NOT repeat claims that were previously invalidated without new evidence\n"
         )
         if self.is_hsp:
             prompt += (

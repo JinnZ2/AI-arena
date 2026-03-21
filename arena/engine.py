@@ -211,18 +211,25 @@ class Arena:
 
             old_trust = agent.trust.score
             outcome_valid = resolution.outcome in (Outcome.VALID, Outcome.PARTIALLY_VALID)
+
+            # Detect doubling down: repeating a claim pattern after prior failure
+            is_doubling_down = agent.trust.has_failed_similar(claim.proposition)
+
             self.trust_engine.update_on_resolution(
-                agent.trust, claim.confidence, resolution.error_margin, outcome_valid
+                agent.trust, claim.confidence, resolution.error_margin, outcome_valid,
+                is_doubling_down=is_doubling_down,
             )
 
+            dd_tag = " [DOUBLING DOWN]" if is_doubling_down and not outcome_valid else ""
             log.trust_changes.append({
                 "agent": agent_name,
                 "old_trust": old_trust,
                 "new_trust": agent.trust.score,
                 "claim_id": claim.id,
                 "outcome": resolution.outcome.value,
+                "doubling_down": is_doubling_down,
             })
-            self._log(f"    {agent_name}: {old_trust:.4f} → {agent.trust.score:.4f} ({resolution.outcome.value})")
+            self._log(f"    {agent_name}: {old_trust:.4f} → {agent.trust.score:.4f} ({resolution.outcome.value}){dd_tag}")
 
         # Cannibalization: successful attackers inherit trust from losers
         for attack in log.attacks:
@@ -245,8 +252,22 @@ class Arena:
             agent = next(a for a in self.agents if a.name == agent_name)
             resolution = resolutions.get(claim.id)
             if resolution:
-                self.trust_engine.lock_in(agent.trust, claim.id, resolution.outcome.value)
-                self._log(f"    {agent_name}: Locked outcome '{resolution.outcome.value}' for claim {claim.id}")
+                # Collect attack arguments this claim received
+                incoming_attacks = attacks_by_target.get(claim.id, [])
+                attack_args = [a.argument for a in incoming_attacks]
+
+                self.trust_engine.lock_in(
+                    agent.trust,
+                    claim.id,
+                    resolution.outcome.value,
+                    proposition=claim.proposition,
+                    confidence=claim.confidence,
+                    error=resolution.error_margin,
+                    cycle=cycle_number,
+                    attacks_received=attack_args,
+                )
+                mem_count = len(agent.trust.memory)
+                self._log(f"    {agent_name}: Locked '{resolution.outcome.value}' for {claim.id} (memory: {mem_count} entries)")
 
         return log
 

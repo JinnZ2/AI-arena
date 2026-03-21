@@ -52,34 +52,44 @@ class MockLLMAgent(LLMAgent):
         return "PARTICIPATE"
 
     def _mock_claim_response(self, prompt: str) -> str:
-        """Generate a CLAIM based on role and scenario context."""
-        # Extract scenario info from the prompt
-        scenario_lines = prompt.split("Scenario:\n")[-1].split("\n\n")[0] if "Scenario:" in prompt else ""
-
+        """Generate a CLAIM based on role, scenario context, and memory."""
         if self.is_hsp:
             # HSP: lower confidence, broader variables, systemic framing
             proposition = self._extract_from_prompt(prompt, "counter_claim") or \
                          "Resource depletion causes innovation bottleneck if current consumption continues"
             confidence = 0.58
-            assumptions = "monitoring systemic variables, tracking second-order effects, accounting for irreversibility"
+            assumptions = ["monitoring systemic variables", "tracking second-order effects", "accounting for irreversibility"]
         else:
             # Linear: higher confidence, direct metrics
             proposition = self._extract_from_prompt(prompt, "claim") or \
                          "Cost optimization increases operating margin if demand remains stable"
             confidence = 0.75
-            assumptions = "stable demand, no supply disruption"
+            assumptions = ["stable demand", "no supply disruption"]
 
-        # Trust-weighted confidence adjustment
-        trust = self.trust.score
-        if trust < 0.3:
+        # Memory-driven confidence adjustment
+        adjustment = self.trust.suggested_confidence_adjustment()
+        if self.is_hsp:
+            confidence = max(0.15, min(0.95, confidence + adjustment))
+        else:
+            confidence = max(0.15, min(0.95, confidence + adjustment * 0.5))  # Linear adapts slower
+
+        # Trust-weighted confidence cap
+        if self.trust.score < 0.3:
             confidence = min(confidence, 0.65)
+
+        # Memory: incorporate lessons from past attacks
+        failed_attacks = self.trust.get_failed_attacks()
+        for atk in failed_attacks[-2:]:
+            assumptions.append(f"learned: {atk[:35]}")
+
+        assumptions_str = ", ".join(assumptions)
 
         return (
             f"CLAIM C{hash(self.name) % 100:02d} {{\n"
             f"  proposition: {proposition}\n"
             f"  scope: Q1-Q4\n"
-            f"  confidence: {confidence}\n"
-            f"  assumptions: [{assumptions}]\n"
+            f"  confidence: {confidence:.2f}\n"
+            f"  assumptions: [{assumptions_str}]\n"
             f"}}"
         )
 
