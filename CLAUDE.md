@@ -25,16 +25,19 @@ AI-arena/
 │       ├── __init__.py
 │       ├── base.py                   # Abstract Agent interface
 │       ├── rule_based.py             # LinearAgent & HSPAgent (heuristic-based)
-│       └── llm.py                    # LLMAgent (abstract, for LLM-powered agents)
+│       ├── llm.py                    # LLMAgent (abstract, for LLM-powered agents)
+│       ├── claude_agent.py           # ClaudeAgent (Anthropic API integration)
+│       └── mock.py                   # MockLLMAgent (demo/testing without API key)
 ├── scenarios/                        # Scenario JSON files
 │   └── scen_01_material_extinction.json
-├── tests/                            # Test suite (64 tests)
+├── tests/                            # Test suite (83 tests)
 │   ├── test_logos.py                 # Parser, types, validator tests
 │   ├── test_trust.py                 # Trust engine tests
 │   ├── test_agents.py                # Agent behavior tests
 │   ├── test_oracle.py                # Oracle resolution tests
-│   └── test_arena.py                 # Full integration tests
-├── requirements.txt                  # Dependencies (stdlib only)
+│   ├── test_arena.py                 # Full integration tests
+│   └── test_llm_agents.py           # Mock/Claude agent pipeline tests
+├── requirements.txt                  # Dependencies (anthropic optional)
 ├── .gitignore
 ├── README.md
 ├── LICENSE                           # MIT
@@ -57,16 +60,23 @@ AI-arena/
 
 ## Tech Stack
 
-- **Language**: Python 3 (standard library only)
+- **Language**: Python 3 (standard library for core engine)
 - **Modules used**: `uuid`, `math`, `json`, `argparse`, `dataclasses`, `enum`, `abc`
+- **Optional dependency**: `anthropic` (for ClaudeAgent — `pip install anthropic`)
 - **Data format**: JSON for scenario definitions
 - **Custom language**: LOGOS — formal argument specification with parser and validator
 
 ## Running the Project
 
 ```bash
-# Run demo scenario (default)
+# Run demo scenario with rule-based agents (default)
 python arena.py
+
+# Run with mock LLM agents (exercises full LLM pipeline, no API key needed)
+python arena.py --agent-type mock
+
+# Run with real Claude API agents (requires ANTHROPIC_API_KEY)
+python arena.py --agent-type claude
 
 # Run a specific scenario
 python arena.py --scenario scenarios/scen_01_material_extinction.json
@@ -74,8 +84,8 @@ python arena.py --scenario scenarios/scen_01_material_extinction.json
 # Custom agents with more cycles
 python arena.py --agents Linear_CEO Systemic_HSP --cycles 5
 
-# Quiet mode (suppress per-phase output)
-python arena.py --scenario scenarios/scen_01.json --quiet
+# Combine options
+python arena.py --agent-type mock --scenario scenarios/scen_01_material_extinction.json --cycles 5 --quiet
 ```
 
 ## Running Tests
@@ -102,6 +112,8 @@ python -m unittest tests/test_trust -v
 | `arena/agents/base.py` | Abstract Agent with propose_claim, propose_attacks, defend, decide_abstain |
 | `arena/agents/rule_based.py` | LinearAgent (narrow metrics) and HSPAgent (shadow variables) |
 | `arena/agents/llm.py` | LLMAgent abstract class with LOGOS system prompt for any LLM backend |
+| `arena/agents/claude_agent.py` | ClaudeAgent: Anthropic API-powered agent (requires `anthropic` package) |
+| `arena/agents/mock.py` | MockLLMAgent: Exercises full LLM pipeline without API key |
 | `arena/engine.py` | Arena: loads scenarios, runs 6-phase cycles, tracks CycleLogs |
 
 ### Arena Phases (6-phase cycle)
@@ -141,7 +153,8 @@ T_new = T_old + confidence * (1 - error) * 0.1                  # Right
 |---|---|---|---|
 | LinearAgent | High confidence, narrow variables | Fast decisions | Misses shadow costs |
 | HSPAgent | Broader variables, lower confidence | Detects omissions | Slower, more conservative |
-| LLMAgent | LLM-powered, LOGOS-formatted output | Flexible reasoning | Requires API key |
+| ClaudeAgent | Claude API, autonomous LOGOS reasoning | Flexible, creative | Requires API key + cost |
+| MockLLMAgent | Simulates LLM pipeline with heuristics | Full pipeline testing, no API key | Deterministic responses |
 
 ### Oracle System
 
@@ -169,6 +182,14 @@ Subclass `Agent` from `arena/agents/base.py` and implement the 4 methods:
 ### LLM-powered
 Subclass `LLMAgent` from `arena/agents/llm.py` and implement `_call_llm(prompt) → str`.
 
+Example with Claude:
+```python
+from arena.agents.claude_agent import ClaudeAgent
+agent = ClaudeAgent("Strategic_HSP", is_hsp=True, model="claude-sonnet-4-20250514")
+```
+
+For testing without an API key, use `MockLLMAgent` which exercises the full prompt→parse→validate pipeline.
+
 ## Adding New Scenarios
 
 1. Create JSON in `scenarios/` following the schema:
@@ -194,9 +215,10 @@ Subclass `LLMAgent` from `arena/agents/llm.py` and implement `_call_llm(prompt) 
 
 ## Roadmap
 
+- [x] ~~LLM agent implementation with Claude API~~ (ClaudeAgent + MockLLMAgent)
 - [ ] Oracle Integration: Hook to real-world financial/operational APIs
 - [ ] Collusion Detection: Identify consensus-of-silence between agents
 - [ ] Human Observer Layer: Translation module for stakeholder-readable logs
 - [ ] Agent memory across cycles: Use loss history to adjust future claims
-- [ ] LLM agent implementation with Claude API
+- [ ] More scenarios: tech debt, talent retention, supply chain
 - [ ] Web UI for visualizing trust trajectories
