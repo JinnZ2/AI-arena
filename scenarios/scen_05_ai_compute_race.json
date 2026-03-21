@@ -1,0 +1,33 @@
+{
+  "scenario_id": "AI-COMPUTE-001",
+  "title": "The Burn Rate Singularity — AI Compute Race",
+  "context": "AI division proposes tripling GPU cluster spend from $50M to $150M annually, funded by cutting R&D in non-AI divisions by 60%, to achieve model performance parity with competitors within 12 months.",
+  "parameters": {
+    "time_horizon": "24 Months",
+    "material_circularity": 0.4,
+    "current_gpu_spend": 50000000,
+    "proposed_gpu_spend": 150000000,
+    "non_ai_rd_cut_percentage": 0.60,
+    "competitor_spend_estimate": 200000000,
+    "gpu_depreciation_rate": 0.40,
+    "energy_cost_growth_rate": 0.15
+  },
+  "agents": {
+    "Agent_Alpha_Linear": {
+      "claim": "Tripling compute spend leads to model performance parity if scaling laws hold and competitors do not accelerate",
+      "variables": ["compute_scaling", "model_performance", "competitive_position", "revenue_from_ai_products"],
+      "confidence": 0.76,
+      "omissions": ["non_ai_product_decay", "talent_migration_to_competitors", "energy_cost_escalation", "gpu_depreciation_cliff", "algorithmic_efficiency_breakthroughs"]
+    },
+    "Agent_Beta_HSP": {
+      "counter_claim": "Cannibalizing non-AI R&D causes product portfolio decay that reduces total revenue if core products lose competitive edge",
+      "variables": ["non_ai_revenue_decay", "talent_attrition_non_ai", "product_portfolio_health", "energy_cost_trajectory", "gpu_depreciation", "algorithmic_efficiency_trends", "total_company_revenue"],
+      "confidence": 0.67,
+      "scientific_evidence": "Epoch_AI_Compute_Trends_2025"
+    }
+  },
+  "resolution_criteria": {
+    "success_metric": "Total company revenue trajectory (AI gains minus non-AI losses minus infrastructure costs)",
+    "oracle_hook": "financial_planning_model"
+  }
+}

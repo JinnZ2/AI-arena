@@ -1,0 +1,31 @@
+{
+  "scenario_id": "BRAIN-DRAIN-001",
+  "title": "The Institutional Lobotomy — Talent Brain Drain",
+  "context": "CFO proposes reducing senior engineer compensation by 15% and replacing departures with junior hires at 60% salary to reduce operating costs by $4.2M annually.",
+  "parameters": {
+    "time_horizon": "18 Months",
+    "material_circularity": 0.3,
+    "senior_engineer_count": 28,
+    "junior_replacement_ratio": 2.5,
+    "knowledge_transfer_period": "6 Months",
+    "market_salary_percentile": 75
+  },
+  "agents": {
+    "Agent_Alpha_Linear": {
+      "claim": "Compensation restructuring reduces operating costs by $4.2M if attrition stays below 20%",
+      "variables": ["compensation_cost", "headcount_ratio", "operating_margin", "recruitment_cost"],
+      "confidence": 0.78,
+      "omissions": ["institutional_knowledge_loss", "architecture_decision_quality", "mentorship_capacity", "incident_severity_increase", "innovation_pipeline_stall"]
+    },
+    "Agent_Beta_HSP": {
+      "counter_claim": "Senior engineer departure causes cascading knowledge loss that increases system failures if institutional memory drops below critical threshold",
+      "variables": ["institutional_knowledge_index", "architecture_debt", "mentorship_ratio", "incident_severity", "innovation_pipeline", "bus_factor", "tribal_knowledge_coverage"],
+      "confidence": 0.74,
+      "scientific_evidence": "Conway_Law_Organizational_Studies_2023"
+    }
+  },
+  "resolution_criteria": {
+    "success_metric": "Total cost of ownership (savings minus incident costs, recruitment costs, and velocity loss)",
+    "oracle_hook": "hr_analytics_platform"
+  }
+}

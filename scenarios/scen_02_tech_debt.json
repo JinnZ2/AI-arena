@@ -1,0 +1,31 @@
+{
+  "scenario_id": "TECH-DEBT-001",
+  "title": "The Velocity Trap — Technical Debt Accumulation",
+  "context": "Engineering leadership proposes shipping features at 2x velocity by deferring code reviews, skipping tests, and accepting known architectural shortcuts. Product claims this increases market capture by 40%.",
+  "parameters": {
+    "time_horizon": "12 Months",
+    "material_circularity": 0.6,
+    "technical_debt_ratio": 0.35,
+    "team_size": 45,
+    "current_test_coverage": 0.72,
+    "incident_rate_baseline": "2 per month"
+  },
+  "agents": {
+    "Agent_Alpha_Linear": {
+      "claim": "Doubling feature velocity increases market share by 40% if competitors remain at current pace",
+      "variables": ["feature_velocity", "market_share", "revenue_growth", "competitor_pace"],
+      "confidence": 0.82,
+      "omissions": ["incident_rate_increase", "developer_burnout", "onboarding_friction", "regression_cascade"]
+    },
+    "Agent_Beta_HSP": {
+      "counter_claim": "Deferred quality causes exponential incident growth that erodes velocity gains if technical debt exceeds 50% threshold",
+      "variables": ["technical_debt_ratio", "incident_rate", "mean_time_to_recovery", "developer_attrition", "regression_cascade", "onboarding_cost", "feature_velocity_decay"],
+      "confidence": 0.71,
+      "scientific_evidence": "Accelerate_State_of_DevOps_Report_2024"
+    }
+  },
+  "resolution_criteria": {
+    "success_metric": "Net feature velocity after 12 months (accounting for incident handling time)",
+    "oracle_hook": "internal_engineering_metrics_api"
+  }
+}
