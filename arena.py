@@ -57,7 +57,9 @@ DEMO_SCENARIO = {
             "amount": -850000,
             "description": "Mental health costs, stress-related illness from displaced workers",
             "reversible": False,
-            "confidence": 0.7
+            "confidence": 0.7,
+            "temporal_profile": "compounding",
+            "compound_rate": 0.04
         },
         {
             "source": "workers",
@@ -65,7 +67,9 @@ DEMO_SCENARIO = {
             "amount": -1600000,
             "description": "Lost local spending, reduced tax base from displaced workers",
             "reversible": False,
-            "confidence": 0.8
+            "confidence": 0.8,
+            "temporal_profile": "compounding",
+            "compound_rate": 0.03
         },
         {
             "source": "company",
@@ -73,7 +77,9 @@ DEMO_SCENARIO = {
             "amount": -900000,
             "description": "Institutional knowledge loss increases incident rate and onboarding costs",
             "reversible": False,
-            "confidence": 0.75
+            "confidence": 0.75,
+            "temporal_profile": "compounding",
+            "compound_rate": 0.06
         },
         {
             "source": "workers",
@@ -82,7 +88,8 @@ DEMO_SCENARIO = {
             "description": "Increased public service load (unemployment, retraining programs)",
             "reversible": True,
             "recovery_time": 18,
-            "confidence": 0.6
+            "confidence": 0.6,
+            "temporal_profile": "decaying"
         }
     ],
     "entropy_events": [

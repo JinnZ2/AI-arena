@@ -153,12 +153,26 @@ class ClosedSystemOracle(Oracle):
         if claim_agent_data is None:
             return Resolution(claim_id=claim.id, outcome=Outcome.PENDING, error_margin=0.5)
 
-        # Core thermodynamic analysis
+        # Parse time horizon for temporal projection
+        params = scenario_params.get("parameters", {})
+        time_horizon_raw = str(params.get("time_horizon", "12 Months"))
+        # Extract months from strings like "18 Months", "Q3-Q4" (6 months), "25 Years"
+        horizon_months = _parse_time_horizon(time_horizon_raw)
+
+        # Core thermodynamic analysis (at t=0 for conservation check)
         company_gain = ledger.company_gain
         external_cost = ledger.external_cost
         net_system = ledger.net_system_value
         total_entropy = ledger.total_entropy
         conservation_error = ledger.conservation_error
+
+        # Temporal analysis: project costs to the scenario's time horizon
+        company_gain_at_horizon = ledger.company_gain_at(horizon_months)
+        external_cost_at_horizon = ledger.external_cost_at(horizon_months)
+        net_system_at_horizon = ledger.net_system_value_at(horizon_months)
+        entropy_at_horizon = sum(
+            e.magnitude_at_month(horizon_months) for e in ledger.entropy_events
+        )
 
         # How much of the real picture does this agent's claim capture?
         claim_variables = set(claim_agent_data.get("variables", []))
@@ -191,8 +205,16 @@ class ClosedSystemOracle(Oracle):
             # Penalty scales with how negative the net is
             net_value_penalty = min(0.3, abs(net_system) / max(abs(company_gain), 1) * 0.15)
 
+        # 5. Temporal penalty: the longer the horizon, the worse compounding costs get
+        temporal_penalty = 0.0
+        if horizon_months > 0 and external_cost_at_horizon > external_cost:
+            # Costs are growing over time — the claim ignores compounding damage
+            growth_ratio = external_cost_at_horizon / max(external_cost, 1)
+            temporal_penalty = min(0.3, (growth_ratio - 1.0) * 0.1)
+
         # Total error
-        error = min(1.0, conservation_penalty + entropy_penalty + omission_penalty + net_value_penalty)
+        error = min(1.0, conservation_penalty + entropy_penalty + omission_penalty
+                    + net_value_penalty + temporal_penalty)
 
         # Determine outcome
         confidence_error_gap = claim.confidence - (1.0 - error)
@@ -208,11 +230,13 @@ class ClosedSystemOracle(Oracle):
 
         # Build system accounting string
         accounting = ledger.summary()
+        accounting += f"\n\n{ledger.temporal_projection()}"
         accounting += f"\n\nClaim Analysis ({claim_agent_key or 'unknown'}):"
         accounting += f"\n  Conservation penalty: {conservation_penalty:.3f}"
         accounting += f"\n  Entropy penalty:      {entropy_penalty:.3f}"
         accounting += f"\n  Omission penalty:     {omission_penalty:.3f}"
         accounting += f"\n  Net value penalty:    {net_value_penalty:.3f}"
+        accounting += f"\n  Temporal penalty:     {temporal_penalty:.3f} (horizon: {horizon_months} months)"
         accounting += f"\n  Total error:          {error:.3f}"
 
         if company_gain > 0 and external_cost > company_gain:
@@ -220,6 +244,13 @@ class ClosedSystemOracle(Oracle):
                 f"\n\n  >> THE MARGIN IS A LIE: Company shows +{company_gain:,.0f} "
                 f"but external systems absorb -{external_cost:,.0f}. "
                 f"Net system value: {net_system:,.0f}"
+            )
+
+        if external_cost_at_horizon > external_cost * 1.5:
+            accounting += (
+                f"\n\n  >> TEMPORAL AMPLIFICATION: External costs grow from "
+                f"{external_cost:,.0f} to {external_cost_at_horizon:,.0f} "
+                f"over {horizon_months} months. The bill compounds."
             )
 
         return Resolution(
@@ -254,3 +285,37 @@ class CompositeOracle(Oracle):
             outcome=worst_outcome,
             error_margin=max_error,
         )
+
+
+def _parse_time_horizon(raw: str) -> float:
+    """Parse a time horizon string into months.
+
+    Handles: '12 Months', '18 Months', '25 Years', 'Q3-Q4' (6 months),
+    '36 Months', plain numbers.
+    """
+    raw = raw.strip().lower()
+    import re
+
+    # "25 years" -> 300
+    match = re.search(r'(\d+)\s*year', raw)
+    if match:
+        return float(match.group(1)) * 12
+
+    # "18 months" -> 18
+    match = re.search(r'(\d+)\s*month', raw)
+    if match:
+        return float(match.group(1))
+
+    # "Q3-Q4" -> ~6 months
+    if 'q' in raw:
+        quarters = re.findall(r'q(\d)', raw)
+        if len(quarters) >= 2:
+            return (int(quarters[-1]) - int(quarters[0]) + 1) * 3
+        return 3  # single quarter
+
+    # Plain number
+    match = re.search(r'(\d+)', raw)
+    if match:
+        return float(match.group(1))
+
+    return 12  # Default 12 months

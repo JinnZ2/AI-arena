@@ -66,12 +66,23 @@ class LinearAgent(Agent):
         adjustment = self.trust.suggested_confidence_adjustment() * 0.5  # Half the suggested
         confidence = max(0.1, min(1.0, confidence + adjustment))
 
+        # Ledger feedback: if the system accounting showed the margin is a lie,
+        # even Linear agents have to face that data — reduce confidence further
+        if self.ledger_shows_net_negative:
+            confidence *= 0.85  # 15% additional reduction — the ledger is hard to argue with
+        if self.ledger_shows_temporal_amplification:
+            confidence *= 0.90  # Compounding costs are especially hard to dismiss
+
+        confidence = max(0.1, confidence)
+
         # Build assumptions, incorporating lessons from past attacks
         assumptions = [f"stable_{v}" for v in variables[:2]]
         failed_attacks = self.trust.get_failed_attacks()
         if failed_attacks:
             # Linear agents grudgingly acknowledge ONE past criticism
             assumptions.append(f"noted_{failed_attacks[-1][:30]}")
+        if self.has_ledger_feedback:
+            assumptions.append("acknowledging_system_accounting")
 
         claim = Claim(
             proposition=proposition,
@@ -143,6 +154,14 @@ class LinearAgent(Agent):
                 reason="Track record suggests insufficient model coverage — reducing exposure",
                 agent_name=self.name,
             )
+        # Ledger feedback: if the ledger proved the margin is a lie AND costs compound,
+        # even a Linear agent should stop claiming the action creates value
+        if self.ledger_shows_net_negative and self.ledger_shows_temporal_amplification:
+            if self.trust.loss_count >= 1:
+                return Abstain(
+                    reason="System accounting shows net-negative value with compounding external costs — claim is thermodynamically incoherent",
+                    agent_name=self.name,
+                )
         return None
 
     def _find_agent_data(self, agents_data: dict) -> Optional[dict]:
@@ -199,8 +218,17 @@ class HSPAgent(Agent):
         adjustment = self.trust.suggested_confidence_adjustment()
         confidence = max(0.1, min(1.0, confidence + adjustment))
 
+        # Ledger feedback: if the system accounting validated our systemic view,
+        # we can increase confidence — the physics is on our side
+        if self.has_ledger_feedback and self.trust.win_count > 0:
+            confidence = min(0.95, confidence + 0.05)  # Validated by the ledger
+        if self.ledger_shows_temporal_amplification:
+            confidence = min(0.95, confidence + 0.03)  # Compounding effects confirmed
+
         # HSP agents explicitly state what they're watching
         assumptions = [f"monitoring_{v}" for v in variables]
+        if self.has_ledger_feedback:
+            assumptions.append("validated_by_system_ledger")
 
         # Memory: incorporate lessons from past attacks into assumptions
         failed_attacks = self.trust.get_failed_attacks()
@@ -274,6 +302,25 @@ class HSPAgent(Agent):
                                 agent_name=self.name,
                             ))
                             break  # One historical attack per claim
+
+            # Ledger-powered attack: if the system accounting proved costs are hidden
+            if self.ledger_shows_net_negative:
+                attacks.append(Attack(
+                    target_claim_id=claim.id,
+                    attack_type=AttackType.CAUSAL_BREAK,
+                    argument="System ledger shows net-negative value — claimed gain is a cost transfer, not value creation",
+                    confidence=min(0.92, 0.80 + 0.02 * self.trust.win_count),
+                    agent_name=self.name,
+                ))
+
+            if self.ledger_shows_temporal_amplification:
+                attacks.append(Attack(
+                    target_claim_id=claim.id,
+                    attack_type=AttackType.IRREVERSIBLE_ENTROPY,
+                    argument="Temporal projection shows compounding external costs — damage accelerates over time",
+                    confidence=min(0.90, 0.78 + 0.02 * self.trust.win_count),
+                    agent_name=self.name,
+                ))
 
         return attacks
 

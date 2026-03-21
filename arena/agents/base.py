@@ -62,6 +62,27 @@ class Agent(ABC):
         """
         ...
 
+    @property
+    def has_ledger_feedback(self) -> bool:
+        """Whether the agent has received system accounting from the oracle."""
+        return bool(self.trust.last_system_accounting)
+
+    @property
+    def ledger_shows_net_negative(self) -> bool:
+        """Whether the last ledger showed net system value < 0."""
+        acct = self.trust.last_system_accounting
+        if not acct:
+            return False
+        return "THE MARGIN IS A LIE" in acct or "Net system value:   -" in acct
+
+    @property
+    def ledger_shows_temporal_amplification(self) -> bool:
+        """Whether the last ledger showed costs growing over time."""
+        acct = self.trust.last_system_accounting
+        if not acct:
+            return False
+        return "TEMPORAL AMPLIFICATION" in acct
+
     def __repr__(self):
         role = "HSP" if self.is_hsp else "Linear"
         return f"Agent({self.name}, {role}, trust={self.trust.score:.3f})"

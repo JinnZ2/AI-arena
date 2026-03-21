@@ -105,6 +105,20 @@ class LLMAgent(Agent):
         if failed:
             lines.append(f"Lessons from past attacks: {', '.join(failed[-3:])}")
 
+        # System accounting feedback from the oracle
+        if self.trust.last_system_accounting:
+            # Include a condensed version of the ledger
+            acct = self.trust.last_system_accounting
+            lines.append("\nSystem Accounting (from last oracle resolution):")
+            for acct_line in acct.split("\n"):
+                # Include key lines: balances, net value, entropy, warnings
+                if any(kw in acct_line for kw in [
+                    "Company gain", "External cost", "Net system",
+                    "Entropy", "MARGIN IS A LIE", "TEMPORAL AMPLIFICATION",
+                    "CROSSOVER", "Irreversible",
+                ]):
+                    lines.append(f"  {acct_line.strip()}")
+
         return "\n".join(lines)
 
     def propose_claim(self, scenario: dict) -> Optional[Claim]:

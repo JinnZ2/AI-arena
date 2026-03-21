@@ -44,6 +44,7 @@ class TrustState:
     memory: list[MemoryEntry] = field(default_factory=list)  # rich memory
     attack_budget: int = 3  # attacks allowed per cycle
     attacks_used: int = 0
+    last_system_accounting: str = ""  # Ledger feedback from last resolution
 
     @property
     def can_attack(self) -> bool:

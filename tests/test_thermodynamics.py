@@ -2,7 +2,8 @@
 
 import unittest
 
-from arena.thermodynamics import SystemLedger, Domain, CostTransfer, EntropyEvent, build_ledger_from_scenario
+from arena.thermodynamics import SystemLedger, Domain, CostTransfer, EntropyEvent, TemporalProfile, build_ledger_from_scenario
+from arena.trust import MemoryEntry
 from arena.oracle import ClosedSystemOracle
 from arena.logos.types import Claim, Outcome
 
@@ -217,6 +218,155 @@ class TestClosedSystemOracle(unittest.TestCase):
         claim = Claim("Extraction increases profit if we ignore costs", ["Q1"], 0.9)
         resolution = oracle.resolve(claim, scenario)
         self.assertIn("THE MARGIN IS A LIE", resolution.system_accounting)
+
+
+class TestTemporalDynamics(unittest.TestCase):
+
+    def test_immediate_profile_constant(self):
+        t = CostTransfer(Domain.WORKERS, Domain.COMPANY, 1000, "Test",
+                        temporal_profile=TemporalProfile.IMMEDIATE)
+        self.assertEqual(t.amount_at_month(0), 1000)
+        self.assertEqual(t.amount_at_month(60), 1000)
+
+    def test_compounding_profile_grows(self):
+        t = CostTransfer(Domain.WORKERS, Domain.HEALTHCARE, -500000, "Health",
+                        temporal_profile=TemporalProfile.COMPOUNDING, compound_rate=0.05)
+        at_0 = abs(t.amount_at_month(0))
+        at_12 = abs(t.amount_at_month(12))
+        at_60 = abs(t.amount_at_month(60))
+        self.assertLess(at_0, at_12)
+        self.assertLess(at_12, at_60)
+
+    def test_delayed_profile_zero_before_threshold(self):
+        t = CostTransfer(Domain.WORKERS, Domain.COMPANY, 1000, "Delayed",
+                        temporal_profile=TemporalProfile.DELAYED, delay_months=12)
+        self.assertEqual(t.amount_at_month(0), 0)
+        self.assertEqual(t.amount_at_month(6), 0)
+        self.assertGreater(t.amount_at_month(18), 0)
+
+    def test_decaying_profile_shrinks(self):
+        t = CostTransfer(Domain.WORKERS, Domain.INFRASTRUCTURE, -500000, "Decaying",
+                        temporal_profile=TemporalProfile.DECAYING)
+        at_0 = abs(t.amount_at_month(0))
+        at_24 = abs(t.amount_at_month(24))
+        self.assertGreater(at_0, at_24)
+
+    def test_linear_profile_grows_steadily(self):
+        t = CostTransfer(Domain.WORKERS, Domain.COMMUNITY, -1000, "Linear growth",
+                        temporal_profile=TemporalProfile.LINEAR)
+        at_0 = abs(t.amount_at_month(0))
+        at_10 = abs(t.amount_at_month(10))
+        at_20 = abs(t.amount_at_month(20))
+        self.assertAlmostEqual(at_10 - at_0, at_20 - at_10, places=0)
+
+    def test_entropy_compounds(self):
+        e = EntropyEvent(Domain.WORKERS, "Knowledge gap", 0.1, compounds=True, compound_rate=0.05)
+        at_0 = e.magnitude_at_month(0)
+        at_12 = e.magnitude_at_month(12)
+        self.assertAlmostEqual(at_0, 0.1)
+        self.assertGreater(at_12, 0.1)
+
+    def test_entropy_no_compound(self):
+        e = EntropyEvent(Domain.WORKERS, "Static loss", 0.1, compounds=False)
+        self.assertEqual(e.magnitude_at_month(0), 0.1)
+        self.assertEqual(e.magnitude_at_month(100), 0.1)
+
+    def test_temporal_projection_output(self):
+        ledger = SystemLedger()
+        ledger.transfer(Domain.WORKERS, Domain.COMPANY, 1_000_000, "Savings")
+        ledger.transfers[-1].temporal_profile = TemporalProfile.IMMEDIATE
+        ledger.transfer(Domain.WORKERS, Domain.HEALTHCARE, -500_000, "Health",
+                       reversible=False)
+        ledger.transfers[-1].temporal_profile = TemporalProfile.COMPOUNDING
+        ledger.transfers[-1].compound_rate = 0.05
+        projection = ledger.temporal_projection([0, 12, 24])
+        self.assertIn("TEMPORAL PROJECTION", projection)
+        self.assertIn("Month", projection)
+
+    def test_net_system_value_at_grows_negative(self):
+        ledger = SystemLedger()
+        ledger.transfer(Domain.WORKERS, Domain.COMPANY, 1_000_000, "Savings")
+        ledger.transfer(Domain.WORKERS, Domain.HEALTHCARE, -500_000, "Health",
+                       reversible=False)
+        ledger.transfers[-1].temporal_profile = TemporalProfile.COMPOUNDING
+        ledger.transfers[-1].compound_rate = 0.05
+        ledger.add_entropy(Domain.WORKERS, "Knowledge gap", 0.1)
+
+        net_0 = ledger.net_system_value_at(0)
+        net_60 = ledger.net_system_value_at(60)
+        self.assertLess(net_60, net_0)  # Gets worse over time
+
+
+class TestFeedbackLoop(unittest.TestCase):
+    """Test that agents receive and respond to ledger feedback."""
+
+    def test_agents_receive_system_accounting(self):
+        from arena.agents.rule_based import LinearAgent, HSPAgent
+        from arena.engine import Arena
+        from arena.oracle import ClosedSystemOracle
+
+        agents = [LinearAgent("Linear_CEO"), HSPAgent("Systemic_HSP")]
+        arena = Arena(agents=agents, oracle=ClosedSystemOracle(), max_cycles=1, verbose=False)
+        arena.run(self.SCENARIO_WITH_COSTS)
+
+        # Both agents should have received system accounting
+        for agent in agents:
+            self.assertTrue(len(agent.trust.last_system_accounting) > 0)
+
+    def test_linear_agent_responds_to_ledger(self):
+        from arena.agents.rule_based import LinearAgent
+
+        agent = LinearAgent("Linear_CEO")
+        # Simulate receiving ledger feedback that says margin is a lie
+        agent.trust.last_system_accounting = (
+            "THE MARGIN IS A LIE\n"
+            "TEMPORAL AMPLIFICATION\n"
+            "Net system value:   -0.30"
+        )
+        agent.trust.memory.append(MemoryEntry(
+            "C1", "X", 0.7, "partially_valid", 0.5, 1,
+        ))
+        self.assertTrue(agent.ledger_shows_net_negative)
+        self.assertTrue(agent.ledger_shows_temporal_amplification)
+
+    def test_hsp_gains_confidence_from_ledger(self):
+        from arena.agents.rule_based import HSPAgent
+
+        agent = HSPAgent("Systemic_HSP")
+        agent.trust.last_system_accounting = "validated by system ledger"
+        agent.trust.memory.append(MemoryEntry("C1", "X", 0.6, "valid", 0.1, 1))
+        self.assertTrue(agent.has_ledger_feedback)
+
+    SCENARIO_WITH_COSTS = {
+        "parameters": {"time_horizon": "12 Months"},
+        "agents": {
+            "Linear_CEO": {
+                "claim": "Cost cutting increases margin if demand holds",
+                "variables": ["operating_margin", "labor_cost"],
+                "confidence": 0.72,
+                "omissions": ["attrition_rate"],
+            },
+            "Systemic_HSP": {
+                "counter_claim": "Cost cutting causes attrition if workers are displaced",
+                "variables": ["attrition_rate", "operating_margin", "morale"],
+                "confidence": 0.65,
+            },
+        },
+        "cost_transfers": [
+            {"source": "workers", "target": "company", "amount": 2000000,
+             "description": "Savings", "reversible": False, "confidence": 0.9},
+            {"source": "workers", "target": "community", "amount": -800000,
+             "description": "Lost spending", "reversible": False, "confidence": 0.8,
+             "temporal_profile": "compounding", "compound_rate": 0.04},
+        ],
+        "entropy_events": [
+            {"domain": "workers", "description": "Knowledge lost", "magnitude": 0.1},
+        ],
+    }
+
+
+# Make SCENARIO_WITH_COSTS accessible at class level for test_agents_receive_system_accounting
+TestFeedbackLoop.SCENARIO_WITH_COSTS = TestFeedbackLoop.SCENARIO_WITH_COSTS
 
 
 if __name__ == "__main__":

@@ -266,6 +266,11 @@ class Arena:
                     cycle=cycle_number,
                     attacks_received=attack_args,
                 )
+
+                # Feedback loop: give agent the system accounting from the oracle
+                if resolution.system_accounting:
+                    agent.trust.last_system_accounting = resolution.system_accounting
+
                 mem_count = len(agent.trust.memory)
                 self._log(f"    {agent_name}: Locked '{resolution.outcome.value}' for {claim.id} (memory: {mem_count} entries)")
 
