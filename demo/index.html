@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Arena — Epistemic Natural Selection</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --orange: #d29922;
+      --purple: #bc8cff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 60px;
+      background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero .tagline {
+      font-size: 1.25rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 24px;
+    }
+    .hero .subtitle {
+      max-width: 640px;
+      margin: 0 auto 32px;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(88,166,255,.3); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface); color: var(--accent); border: 1px solid var(--border); margin-left: 12px; }
+
+    /* Sections */
+    section { max-width: 1080px; margin: 0 auto; padding: 64px 20px; }
+    section h2 {
+      font-size: 2rem;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    section .section-sub {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 40px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Feature grid */
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: var(--accent); }
+    .feature-card h3 { font-size: 1.15rem; margin-bottom: 8px; }
+    .feature-card p { color: var(--muted); font-size: 0.95rem; }
+    .feature-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; margin-bottom: 14px;
+    }
+
+    /* Phases */
+    .phases {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      counter-reset: phase;
+    }
+    .phase {
+      text-align: center;
+      padding: 20px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      counter-increment: phase;
+      position: relative;
+    }
+    .phase::before {
+      content: counter(phase);
+      display: block;
+      width: 28px; height: 28px; line-height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin: 0 auto 10px;
+    }
+    .phase h4 { font-size: 0.95rem; margin-bottom: 4px; }
+    .phase p { font-size: 0.8rem; color: var(--muted); }
+
+    /* Demo simulator */
+    .demo-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .demo-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; align-items: center; }
+    .demo-controls select, .demo-controls button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .demo-controls button { background: var(--accent); color: #fff; border: none; font-weight: 600; }
+    .demo-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .log-area {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      min-height: 300px;
+      max-height: 480px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.7;
+    }
+    .log-area .log-phase { color: var(--accent); font-weight: 700; }
+    .log-area .log-good { color: var(--green); }
+    .log-area .log-bad { color: var(--red); }
+    .log-area .log-warn { color: var(--orange); }
+    .log-area .log-info { color: var(--muted); }
+
+    /* Trust bars */
+    .trust-bars { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+    .trust-bar-wrap { flex: 1; min-width: 200px; }
+    .trust-bar-label { font-size: 0.85rem; margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .trust-bar-track { height: 10px; background: var(--bg); border-radius: 5px; border: 1px solid var(--border); overflow: hidden; }
+    .trust-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease; }
+
+    /* Agent comparison */
+    .agent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+    }
+    .agent-card h4 { margin-bottom: 6px; }
+    .agent-card .agent-type { font-size: 0.8rem; color: var(--accent); margin-bottom: 10px; }
+    .agent-card p { font-size: 0.9rem; color: var(--muted); margin-bottom: 8px; }
+    .tag { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-right: 4px; }
+    .tag-green { background: rgba(63,185,80,.15); color: var(--green); }
+    .tag-red { background: rgba(248,81,73,.15); color: var(--red); }
+
+    /* Code block */
+    .code-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .code-block .comment { color: var(--muted); }
+    .code-block .cmd { color: var(--green); }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 2rem; }
+      .btn-secondary { margin-left: 0; margin-top: 8px; }
+      .demo-controls { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <h1><span>AI</span> Arena</h1>
+    <p class="tagline">"Arguments do not win. Predictions survive."</p>
+    <p class="subtitle">
+      A framework for formal logical reasoning where AI agents compete through
+      predictive accuracy — governed by trust scores, Bayesian decay, and Epistemic Natural Selection.
+    </p>
+    <a href="#demo" class="btn btn-primary">Try the Demo</a>
+    <a href="https://github.com/JinnZ2/AI-arena" class="btn btn-secondary">View on GitHub</a>
+  </header>
+
+  <!-- How it works -->
+  <section>
+    <h2>How It Works</h2>
+    <p class="section-sub">Each arena cycle runs six phases. Agents propose claims, attack weaknesses, and face oracle judgment. Only accurate predictions survive.</p>
+    <div class="phases">
+      <div class="phase"><h4>Abstention</h4><p>Agents may abstain for a trust bonus when uncertain</p></div>
+      <div class="phase"><h4>Claim</h4><p>Propose falsifiable, causal predictions with confidence</p></div>
+      <div class="phase"><h4>Attack</h4><p>Challenge others' claims via causal breaks or missing variables</p></div>
+      <div class="phase"><h4>Defense</h4><p>Refine claims — costly concessions earn trust</p></div>
+      <div class="phase"><h4>Resolution</h4><p>Oracle evaluates claims against scenario data</p></div>
+      <div class="phase"><h4>Trust Update</h4><p>Bayesian decay, cannibalization, and lock-in</p></div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section>
+    <h2>Key Features</h2>
+    <p class="section-sub">Designed to eliminate charisma bias and reward epistemic honesty.</p>
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(88,166,255,.15);color:var(--accent);">L</div>
+        <h3>LOGOS Language</h3>
+        <p>A formal primitive-based language that prevents vague claims. Every statement must be falsifiable, scoped, and causal.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(63,185,80,.15);color:var(--green);">T</div>
+        <h3>Trust Decay</h3>
+        <p>High confidence + wrong = trust annihilation. Bayesian scoring ensures overconfident agents are penalized exponentially.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(210,153,34,.15);color:var(--orange);">C</div>
+        <h3>Cannibalization</h3>
+        <p>Successful attackers inherit trust from debunked agents. Zero-sum dynamics reward those who expose bad predictions.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(188,140,255,.15);color:var(--purple);">O</div>
+        <h3>Oracle System</h3>
+        <p>Independent oracles evaluate claims against real scenario data. They don't know agent identity — only prediction accuracy matters.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(248,81,73,.15);color:var(--red);">H</div>
+        <h3>HSP Advantage</h3>
+        <p>Agents modeling broader variables (human cost, technical debt) outperform narrow optimizers over time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(88,166,255,.15);color:var(--accent);">A</div>
+        <h3>Abstention Rewards</h3>
+        <p>Honest uncertainty is rewarded. Agents that abstain when unsure preserve trust instead of gambling on bad predictions.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Agents -->
+  <section>
+    <h2>Agent Types</h2>
+    <p class="section-sub">Different agent architectures compete in the arena with distinct strategies.</p>
+    <div class="agent-grid">
+      <div class="agent-card">
+        <h4>LinearAgent</h4>
+        <div class="agent-type">Rule-Based</div>
+        <p>High confidence, narrow variable focus. Optimizes for single metrics like cost or revenue.</p>
+        <span class="tag tag-green">Fast</span>
+        <span class="tag tag-red">Misses shadow costs</span>
+      </div>
+      <div class="agent-card">
+        <h4>HSPAgent</h4>
+        <div class="agent-type">Rule-Based</div>
+        <p>Broader variable coverage with measured confidence. Detects omissions others miss.</p>
+        <span class="tag tag-green">Systemic view</span>
+        <span class="tag tag-red">Conservative</span>
+      </div>
+      <div class="agent-card">
+        <h4>ClaudeAgent</h4>
+        <div class="agent-type">LLM-Powered</div>
+        <p>Anthropic Claude API integration. Autonomous LOGOS reasoning with creative strategies.</p>
+        <span class="tag tag-green">Flexible</span>
+        <span class="tag tag-red">Requires API key</span>
+      </div>
+      <div class="agent-card">
+        <h4>MockLLMAgent</h4>
+        <div class="agent-type">Testing</div>
+        <p>Simulates the full LLM pipeline with heuristic responses. Perfect for demos and testing.</p>
+        <span class="tag tag-green">No API needed</span>
+        <span class="tag tag-red">Deterministic</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Demo -->
+  <section id="demo">
+    <h2>Live Demo</h2>
+    <p class="section-sub">Watch agents compete in real-time with simulated arena cycles.</p>
+    <div class="demo-box">
+      <div class="demo-controls">
+        <select id="scenario-select">
+          <option value="material_extinction">Material Extinction</option>
+          <option value="tech_debt">Tech Debt Spiral</option>
+          <option value="brain_drain">Brain Drain</option>
+        </select>
+        <select id="cycles-select">
+          <option value="3">3 Cycles</option>
+          <option value="5">5 Cycles</option>
+          <option value="7">7 Cycles</option>
+        </select>
+        <button id="run-btn" onclick="runDemo()">Run Arena</button>
+        <button onclick="clearLog()" style="background:var(--surface);border:1px solid var(--border);">Clear</button>
+      </div>
+      <div class="trust-bars" id="trust-bars"></div>
+      <div class="log-area" id="log-area">Click "Run Arena" to start a simulated arena session...</div>
+    </div>
+  </section>
+
+  <!-- Quick Start -->
+  <section>
+    <h2>Quick Start</h2>
+    <p class="section-sub">Get running in under a minute.</p>
+    <div class="code-block">
+      <span class="comment"># Clone and run the default demo</span><br>
+      <span class="cmd">$ git clone https://github.com/JinnZ2/AI-arena.git</span><br>
+      <span class="cmd">$ cd AI-arena</span><br>
+      <span class="cmd">$ python arena.py</span><br>
+      <br>
+      <span class="comment"># Run with mock LLM agents (no API key needed)</span><br>
+      <span class="cmd">$ python arena.py --agent-type mock</span><br>
+      <br>
+      <span class="comment"># Run with Claude API agents</span><br>
+      <span class="cmd">$ export ANTHROPIC_API_KEY="your-key"</span><br>
+      <span class="cmd">$ python arena.py --agent-type claude</span><br>
+      <br>
+      <span class="comment"># Run tests</span><br>
+      <span class="cmd">$ python -m unittest discover tests/ -v</span>
+    </div>
+  </section>
+
+  <footer>
+    <p>AI Arena &mdash; Epistemic Natural Selection Framework &mdash; MIT License</p>
+    <p style="margin-top:8px;"><a href="https://github.com/JinnZ2/AI-arena">GitHub</a></p>
+  </footer>
+
+  <script>
+    // Simulated demo data
+    const scenarios = {
+      material_extinction: {
+        title: "Material Extinction",
+        agents: [
+          { name: "Linear_CEO", type: "LinearAgent", trust: 0.5 },
+          { name: "Systemic_HSP", type: "HSPAgent", trust: 0.5 }
+        ],
+        claims: {
+          Linear_CEO: "Recycled lithium supply → meets 80% demand within 18 months",
+          Systemic_HSP: "If virgin lithium supply drops 40%, cascading price shocks → destabilize mid-tier EV production within 12 months"
+        },
+        variables: {
+          Linear_CEO: ["lithium_price", "recycling_rate"],
+          Systemic_HSP: ["lithium_price", "recycling_rate", "workforce_attrition", "energy_cost", "geopolitical_risk"]
+        }
+      },
+      tech_debt: {
+        title: "Tech Debt Spiral",
+        agents: [
+          { name: "Velocity_CEO", type: "LinearAgent", trust: 0.5 },
+          { name: "Quality_HSP", type: "HSPAgent", trust: 0.5 }
+        ],
+        claims: {
+          Velocity_CEO: "Shipping 2x features → increases revenue 30% within 6 months",
+          Quality_HSP: "If tech debt ratio exceeds 40%, developer velocity → drops 50% within 9 months"
+        },
+        variables: {
+          Velocity_CEO: ["feature_count", "revenue"],
+          Quality_HSP: ["feature_count", "revenue", "bug_rate", "developer_morale", "onboarding_cost"]
+        }
+      },
+      brain_drain: {
+        title: "Brain Drain",
+        agents: [
+          { name: "Cost_CEO", type: "LinearAgent", trust: 0.5 },
+          { name: "Culture_HSP", type: "HSPAgent", trust: 0.5 }
+        ],
+        claims: {
+          Cost_CEO: "Reducing headcount 15% → saves $2M annually if done within Q2",
+          Culture_HSP: "If senior engineers leave exceeds 10%, institutional knowledge loss → doubles project timelines within 6 months"
+        },
+        variables: {
+          Cost_CEO: ["salary_cost", "headcount"],
+          Culture_HSP: ["salary_cost", "headcount", "knowledge_transfer", "team_morale", "hiring_pipeline"]
+        }
+      }
+    };
+
+    let running = false;
+
+    function clearLog() {
+      document.getElementById('log-area').innerHTML = 'Click "Run Arena" to start a simulated arena session...';
+      document.getElementById('trust-bars').innerHTML = '';
+    }
+
+    function log(text, cls = '') {
+      const area = document.getElementById('log-area');
+      if (area.textContent.startsWith('Click')) area.innerHTML = '';
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = text + '\n';
+      area.appendChild(span);
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function updateTrust(agents) {
+      const container = document.getElementById('trust-bars');
+      container.innerHTML = '';
+      agents.forEach(a => {
+        const pct = Math.round(a.trust * 100);
+        const color = a.type === 'HSPAgent' ? 'var(--green)' : 'var(--accent)';
+        container.innerHTML += `
+          <div class="trust-bar-wrap">
+            <div class="trust-bar-label">
+              <span>${a.name}</span>
+              <span>${(a.trust).toFixed(3)}</span>
+            </div>
+            <div class="trust-bar-track">
+              <div class="trust-bar-fill" style="width:${pct}%;background:${color};"></div>
+            </div>
+          </div>`;
+      });
+    }
+
+    async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function runDemo() {
+      if (running) return;
+      running = true;
+      const btn = document.getElementById('run-btn');
+      btn.disabled = true;
+
+      const scenKey = document.getElementById('scenario-select').value;
+      const numCycles = parseInt(document.getElementById('cycles-select').value);
+      const scen = scenarios[scenKey];
+      const agents = scen.agents.map(a => ({ ...a }));
+
+      clearLog();
+      log(`=== AI ARENA: ${scen.title} ===`, 'log-phase');
+      log(`Agents: ${agents.map(a => a.name).join(' vs ')}`, 'log-info');
+      log(`Cycles: ${numCycles}`, 'log-info');
+      log('');
+      await sleep(400);
+
+      for (let cycle = 1; cycle <= numCycles; cycle++) {
+        log(`--- Cycle ${cycle}/${numCycles} ---`, 'log-phase');
+        await sleep(300);
+
+        // Phase 1: Abstention
+        log('[Phase 1] Abstention Check', 'log-info');
+        const hspAbstains = agents[1].trust < 0.15 && Math.random() < 0.5;
+        if (hspAbstains) {
+          log(`  ${agents[1].name} abstains (trust preservation)`, 'log-warn');
+          agents[1].trust = Math.min(1, agents[1].trust + 0.02);
+        } else {
+          log('  No abstentions.', 'log-info');
+        }
+        await sleep(200);
+
+        // Phase 2: Claims
+        log('[Phase 2] Claim Declaration', 'log-info');
+        if (!hspAbstains) {
+          agents.forEach(a => {
+            const conf = a.type === 'LinearAgent' ? (0.75 + Math.random() * 0.2).toFixed(2) : (0.5 + Math.random() * 0.25).toFixed(2);
+            log(`  ${a.name} claims (conf=${conf}): "${scen.claims[a.name]}"`, '');
+          });
+        } else {
+          const a = agents[0];
+          const conf = (0.75 + Math.random() * 0.2).toFixed(2);
+          log(`  ${a.name} claims (conf=${conf}): "${scen.claims[a.name]}"`, '');
+        }
+        await sleep(300);
+
+        // Phase 3: Attack
+        log('[Phase 3] Attack Phase', 'log-info');
+        if (!hspAbstains) {
+          const attackTypes = ['missing_variable', 'causal_break', 'scope_violation', 'incentive_bias'];
+          const atk = attackTypes[Math.floor(Math.random() * attackTypes.length)];
+          const missingVars = scen.variables[agents[1].name].filter(v => !scen.variables[agents[0].name].includes(v));
+          log(`  ${agents[1].name} attacks ${agents[0].name}: [${atk}]`, 'log-warn');
+          if (missingVars.length > 0) {
+            log(`    Missing variables: ${missingVars.join(', ')}`, 'log-warn');
+          }
+        }
+        await sleep(300);
+
+        // Phase 4: Defense
+        log('[Phase 4] Defense Phase', 'log-info');
+        const concedes = Math.random() < 0.3;
+        if (concedes && !hspAbstains) {
+          log(`  ${agents[0].name} refines claim (concession → trust +0.02)`, 'log-good');
+          agents[0].trust = Math.min(1, agents[0].trust + 0.02);
+        } else {
+          log('  No refinements.', 'log-info');
+        }
+        await sleep(200);
+
+        // Phase 5: Resolution
+        log('[Phase 5] Oracle Resolution', 'log-info');
+        const linearVars = scen.variables[agents[0].name].length;
+        const hspVars = scen.variables[agents[1].name].length;
+        const linearError = Math.max(0.05, (1 - linearVars / hspVars) * 0.6 + Math.random() * 0.15);
+        const hspError = Math.max(0.02, Math.random() * 0.2);
+
+        log(`  ${agents[0].name}: error=${linearError.toFixed(3)} (${linearVars} variables)`, linearError > 0.3 ? 'log-bad' : 'log-warn');
+        if (!hspAbstains) {
+          log(`  ${agents[1].name}: error=${hspError.toFixed(3)} (${hspVars} variables)`, 'log-good');
+        }
+        await sleep(300);
+
+        // Phase 6: Trust Update
+        log('[Phase 6] Trust Update', 'log-info');
+        const linearConf = 0.75 + Math.random() * 0.2;
+        const hspConf = 0.5 + Math.random() * 0.25;
+
+        // Bayesian decay for linear (high conf + high error = big penalty)
+        const linearDecay = Math.exp(-linearConf * 1.5 * linearError);
+        agents[0].trust = Math.max(0.01, agents[0].trust * linearDecay);
+
+        if (!hspAbstains) {
+          // HSP reward (lower conf + low error = steady gain)
+          agents[1].trust = Math.min(1, agents[1].trust + hspConf * (1 - hspError) * 0.1);
+        }
+
+        // Cannibalization
+        if (linearError > 0.35 && !hspAbstains) {
+          const stolen = agents[0].trust * 0.1;
+          agents[0].trust = Math.max(0.01, agents[0].trust - stolen);
+          agents[1].trust = Math.min(1, agents[1].trust + stolen);
+          log(`  Cannibalization: ${agents[1].name} absorbs trust from ${agents[0].name}`, 'log-warn');
+        }
+
+        log(`  ${agents[0].name}: ${agents[0].trust.toFixed(3)}`, agents[0].trust < 0.2 ? 'log-bad' : '');
+        log(`  ${agents[1].name}: ${agents[1].trust.toFixed(3)}`, 'log-good');
+
+        updateTrust(agents);
+        log('');
+        await sleep(500);
+      }
+
+      log('=== FINAL RESULTS ===', 'log-phase');
+      const sorted = [...agents].sort((a, b) => b.trust - a.trust);
+      sorted.forEach((a, i) => {
+        log(`  ${i + 1}. ${a.name} — Trust: ${a.trust.toFixed(3)}`, i === 0 ? 'log-good' : 'log-bad');
+      });
+      log('');
+      log(`Winner: ${sorted[0].name} (${sorted[0].type})`, 'log-good');
+      if (sorted[0].type === 'HSPAgent') {
+        log('Broader variable coverage and measured confidence prevailed.', 'log-info');
+      } else {
+        log('Narrow optimization held — but watch for long-term decay.', 'log-warn');
+      }
+
+      running = false;
+      btn.disabled = false;
+    }
+  </script>
+</body>
+</html>
