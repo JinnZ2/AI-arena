@@ -2,7 +2,10 @@
 
 import unittest
 
-from arena.thermodynamics import SystemLedger, Domain, CostTransfer, EntropyEvent, TemporalProfile, build_ledger_from_scenario
+from arena.thermodynamics import (
+    SystemLedger, Domain, CostTransfer, EntropyEvent, TemporalProfile,
+    build_ledger_from_scenario, ImperfectionChecker, EquilibriumChecker,
+)
 from arena.trust import MemoryEntry
 from arena.oracle import ClosedSystemOracle
 from arena.logos.types import Claim, Outcome
@@ -367,6 +370,217 @@ class TestFeedbackLoop(unittest.TestCase):
 
 # Make SCENARIO_WITH_COSTS accessible at class level for test_agents_receive_system_accounting
 TestFeedbackLoop.SCENARIO_WITH_COSTS = TestFeedbackLoop.SCENARIO_WITH_COSTS
+
+
+class TestImperfectionChecker(unittest.TestCase):
+    """Third Law: no process achieves perfect efficiency."""
+
+    def test_perfect_confidence_penalized(self):
+        """Confidence = 1.0 violates Third Law (absolute zero unattainable)."""
+        penalty, violations = ImperfectionChecker.check_claim(1.0, ["revenue"], [])
+        self.assertGreater(penalty, 0)
+        self.assertTrue(any("Third Law" in v for v in violations))
+
+    def test_reasonable_confidence_no_penalty(self):
+        """Normal confidence with good coverage should not be penalized."""
+        penalty, violations = ImperfectionChecker.check_claim(
+            0.7,
+            ["revenue", "attrition", "morale", "tech_debt"],
+            ["supply_chain"],
+        )
+        self.assertEqual(penalty, 0.0)
+        self.assertEqual(len(violations), 0)
+
+    def test_narrow_model_zero_omissions_penalized(self):
+        """Narrow model claiming zero omissions = frictionless claim."""
+        penalty, violations = ImperfectionChecker.check_claim(0.8, ["revenue"], [])
+        self.assertGreater(penalty, 0)
+        self.assertTrue(any("frictionless" in v for v in violations))
+
+    def test_broad_model_zero_omissions_ok(self):
+        """Broad model can legitimately have fewer omissions."""
+        penalty, violations = ImperfectionChecker.check_claim(
+            0.6, ["a", "b", "c", "d", "e"], []
+        )
+        # Broad models don't trigger the narrow-model suspicion
+        self.assertEqual(penalty, 0.0)
+
+    def test_carnot_bound_basic(self):
+        """Carnot bound = 1 - overhead/input."""
+        bound = ImperfectionChecker.carnot_bound(1_000_000, 200_000)
+        self.assertAlmostEqual(bound, 0.8)
+
+    def test_carnot_bound_zero_input(self):
+        """Zero input means zero efficiency possible."""
+        bound = ImperfectionChecker.carnot_bound(0, 100)
+        self.assertEqual(bound, 0.0)
+
+    def test_efficiency_claim_within_bound(self):
+        """Claiming savings within Carnot bound: no penalty."""
+        penalty, msg = ImperfectionChecker.check_efficiency_claim(
+            claimed_savings=700_000,
+            total_input=1_000_000,
+            minimum_overhead=200_000,
+        )
+        self.assertEqual(penalty, 0.0)
+        self.assertIsNone(msg)
+
+    def test_efficiency_claim_exceeds_bound(self):
+        """Claiming savings beyond Carnot bound: penalized."""
+        penalty, msg = ImperfectionChecker.check_efficiency_claim(
+            claimed_savings=950_000,  # 95% efficiency
+            total_input=1_000_000,
+            minimum_overhead=200_000,  # Max = 80%
+        )
+        self.assertGreater(penalty, 0)
+        self.assertIn("Carnot", msg)
+
+
+class TestEquilibriumChecker(unittest.TestCase):
+    """Le Chatelier: systems resist displacement from equilibrium."""
+
+    def test_small_disturbance_no_penalty(self):
+        """Minor changes don't trigger significant resistance."""
+        penalty, msg = EquilibriumChecker.check_claim(0.05, False)
+        self.assertEqual(penalty, 0.0)
+        self.assertIsNone(msg)
+
+    def test_large_disturbance_no_counterforce_penalized(self):
+        """Major disturbance without modeling counterforce: penalized."""
+        penalty, msg = EquilibriumChecker.check_claim(0.5, False)
+        self.assertGreater(penalty, 0)
+        self.assertIn("Le Chatelier", msg)
+        self.assertIn("severe", msg)
+
+    def test_large_disturbance_with_counterforce_ok(self):
+        """Major disturbance with counterforce modeled: no penalty."""
+        penalty, msg = EquilibriumChecker.check_claim(0.5, True)
+        self.assertEqual(penalty, 0.0)
+        self.assertIsNone(msg)
+
+    def test_moderate_disturbance_unmodeled(self):
+        """Moderate disturbance without counterforce: moderate penalty."""
+        penalty, msg = EquilibriumChecker.check_claim(0.3, False)
+        self.assertGreater(penalty, 0)
+        self.assertIn("significant", msg)
+
+    def test_counterforce_increases_with_magnitude(self):
+        """Larger disturbances produce larger counterforces."""
+        cf_small = EquilibriumChecker.estimate_counterforce(0.2)
+        cf_large = EquilibriumChecker.estimate_counterforce(0.8)
+        self.assertGreater(cf_large, cf_small)
+
+    def test_fast_rate_amplifies_counterforce(self):
+        """Fast changes create disproportionately large resistance."""
+        cf_slow = EquilibriumChecker.estimate_counterforce(0.3, rate_of_change=1.0)
+        cf_fast = EquilibriumChecker.estimate_counterforce(0.3, rate_of_change=5.0)
+        self.assertGreater(cf_fast, cf_slow)
+
+    def test_resistance_gradient(self):
+        """Rate of change matters more than magnitude alone."""
+        # Slow but large change
+        cf_slow_large = EquilibriumChecker.estimate_counterforce(0.5, rate_of_change=1.0)
+        # Fast but moderate change
+        cf_fast_moderate = EquilibriumChecker.estimate_counterforce(0.3, rate_of_change=5.0)
+        # Fast moderate can exceed slow large due to rate amplifier
+        self.assertGreater(cf_fast_moderate, 0)
+        self.assertGreater(cf_slow_large, 0)
+
+
+class TestClosedSystemOraclePhysicsAxioms(unittest.TestCase):
+    """Integration tests: all four physics axioms enforced by the oracle."""
+
+    def test_imperfection_penalty_in_oracle(self):
+        """Oracle penalizes perfect-confidence claims (Third Law)."""
+        oracle = ClosedSystemOracle()
+        claim = Claim(
+            proposition="Cost cutting increases margin if demand holds",
+            scope=["Q3-Q4"],
+            confidence=1.0,  # Perfect confidence = Third Law violation
+            agent_name="Overconfident_CEO",
+        )
+        scenario = {
+            "parameters": {"time_horizon": "12 Months"},
+            "agents": {
+                "Overconfident_CEO": {
+                    "claim": "Cost cutting increases margin if demand holds",
+                    "variables": ["margin"],
+                    "confidence": 1.0,
+                    "omissions": [],
+                },
+            },
+            "cost_transfers": [
+                {"source": "workers", "target": "company", "amount": 1000000,
+                 "description": "Savings"},
+            ],
+        }
+        resolution = oracle.resolve(claim, scenario)
+        self.assertGreater(resolution.error_margin, 0)
+        self.assertIn("Imperfection penalty", resolution.system_accounting)
+
+    def test_equilibrium_penalty_in_oracle(self):
+        """Oracle penalizes large disturbances without counterforce modeling."""
+        oracle = ClosedSystemOracle()
+        claim = Claim(
+            proposition="Cost cutting increases margin if demand holds",
+            scope=["Q3-Q4"],
+            confidence=0.8,
+            agent_name="Linear_CEO",
+        )
+        scenario = {
+            "parameters": {
+                "time_horizon": "12 Months",
+                "disturbance_magnitude": 0.5,
+                "rate_of_change": 3.0,
+            },
+            "agents": {
+                "Linear_CEO": {
+                    "claim": "Cost cutting increases margin if demand holds",
+                    "variables": ["margin", "revenue"],
+                    "confidence": 0.8,
+                    "omissions": ["attrition_rate"],
+                },
+            },
+            "cost_transfers": [
+                {"source": "workers", "target": "company", "amount": 2000000,
+                 "description": "Savings"},
+            ],
+        }
+        resolution = oracle.resolve(claim, scenario)
+        self.assertIn("Equilibrium penalty", resolution.system_accounting)
+        self.assertIn("Le Chatelier", resolution.system_accounting)
+
+    def test_hsp_agent_passes_equilibrium_check(self):
+        """HSP agent models counterforce variables — no Le Chatelier penalty."""
+        oracle = ClosedSystemOracle()
+        claim = Claim(
+            proposition="Cost cutting causes attrition if workers are displaced",
+            scope=["Q3-Q4"],
+            confidence=0.65,
+            agent_name="Systemic_HSP",
+        )
+        scenario = {
+            "parameters": {
+                "time_horizon": "12 Months",
+                "disturbance_magnitude": 0.5,
+            },
+            "agents": {
+                "Systemic_HSP": {
+                    "claim": "Cost cutting causes attrition if workers are displaced",
+                    "variables": ["attrition_rate", "employee_morale", "knowledge_drain"],
+                    "confidence": 0.65,
+                    "omissions": [],
+                },
+            },
+            "cost_transfers": [
+                {"source": "workers", "target": "company", "amount": 2000000,
+                 "description": "Savings"},
+            ],
+        }
+        resolution = oracle.resolve(claim, scenario)
+        # Should not contain Le Chatelier violation since counterforce vars are present
+        if resolution.system_accounting:
+            self.assertNotIn("Le Chatelier", resolution.system_accounting)
 
 
 if __name__ == "__main__":

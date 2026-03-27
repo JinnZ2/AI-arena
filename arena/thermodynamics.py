@@ -338,6 +338,160 @@ class SystemLedger:
         return "\n".join(lines)
 
 
+class ImperfectionChecker:
+    """Third Law enforcement: no process achieves perfect efficiency.
+
+    Absolute zero is unattainable. In the Arena, this means:
+    - No agent may claim zero loss, zero risk, or 100% efficiency
+    - Every transformation has a minimum friction proportional to complexity
+    - Claims of zero externalities are conservation violations in disguise
+
+    The Carnot Bound sets a theoretical maximum efficiency for any process:
+        η_max = 1 - (minimum_unavoidable_overhead / total_input)
+    Claims exceeding this bound are physically incoherent.
+    """
+
+    # Minimum friction: no process can claim efficiency above this
+    DEFAULT_MAX_EFFICIENCY = 0.95  # 95% — generous, still not 100%
+
+    # Complexity-scaled friction floor: more complex changes = more friction
+    FRICTION_PER_VARIABLE = 0.02  # Each variable adds 2% friction minimum
+
+    @staticmethod
+    def check_claim(claim_confidence: float, claimed_variables: list[str],
+                    omissions: list[str]) -> tuple[float, list[str]]:
+        """Check a claim against Third Law constraints.
+
+        Returns (penalty, list_of_violations).
+        """
+        violations = []
+        penalty = 0.0
+
+        # Perfect confidence = physically impossible
+        if claim_confidence >= 1.0:
+            violations.append("Third Law: confidence=1.0 implies perfect knowledge (unattainable)")
+            penalty += 0.2
+
+        # Zero omissions claimed with narrow variables = suspicious
+        if len(omissions) == 0 and len(claimed_variables) <= 2:
+            violations.append("Third Law: narrow model claims zero omissions (frictionless transition)")
+            penalty += 0.1
+
+        return penalty, violations
+
+    @staticmethod
+    def carnot_bound(total_input: float, minimum_overhead: float) -> float:
+        """Calculate the maximum theoretical efficiency for a process.
+
+        Just as no heat engine can exceed η = 1 - T_cold/T_hot,
+        no organizational process can extract more value than the
+        theoretical max set by its unavoidable overhead.
+        """
+        if total_input <= 0:
+            return 0.0
+        return max(0.0, 1.0 - (minimum_overhead / total_input))
+
+    @staticmethod
+    def check_efficiency_claim(claimed_savings: float, total_input: float,
+                                minimum_overhead: float) -> tuple[float, str | None]:
+        """Check if a claimed efficiency exceeds the Carnot bound.
+
+        Returns (penalty, violation_message_or_None).
+        """
+        if total_input <= 0:
+            return 0.0, None
+
+        claimed_efficiency = claimed_savings / total_input
+        max_efficiency = ImperfectionChecker.carnot_bound(total_input, minimum_overhead)
+
+        if claimed_efficiency > max_efficiency:
+            excess = claimed_efficiency - max_efficiency
+            penalty = min(0.4, excess * 2.0)
+            msg = (f"Third Law (Carnot): claimed efficiency {claimed_efficiency:.1%} "
+                   f"exceeds theoretical max {max_efficiency:.1%}")
+            return penalty, msg
+
+        return 0.0, None
+
+
+class EquilibriumChecker:
+    """Le Chatelier enforcement: systems resist displacement.
+
+    A system at equilibrium, when subjected to a disturbance, will
+    adjust to partially counteract that disturbance. In the Arena:
+
+    - Large, sudden changes produce proportional counterforces
+    - The larger the disturbance, the stronger the resistance
+    - Counterforces are often delayed (DELAYED temporal profile)
+    - Ignoring counterforce = missing_variable attack surface
+
+    The resistance gradient: counterforce is proportional to the
+    RATE of change, not just magnitude. Fast changes produce
+    disproportionately large resistance.
+    """
+
+    # Disturbance thresholds
+    MINOR_THRESHOLD = 0.10   # < 10% change: minimal resistance
+    MODERATE_THRESHOLD = 0.25  # 10-25%: noticeable resistance
+    MAJOR_THRESHOLD = 0.50   # > 50%: severe counterforce
+
+    @staticmethod
+    def estimate_counterforce(disturbance_magnitude: float,
+                               rate_of_change: float = 1.0) -> float:
+        """Estimate the counterforce produced by a disturbance.
+
+        disturbance_magnitude: 0-1 scale (fraction of system displaced)
+        rate_of_change: multiplier for how fast the change occurs
+            (1.0 = gradual, 2.0 = fast, 5.0 = sudden)
+
+        Returns counterforce magnitude (0-1).
+        """
+        if disturbance_magnitude <= 0:
+            return 0.0
+
+        # Base counterforce scales with disturbance
+        base = disturbance_magnitude * 0.6
+
+        # Rate amplifier: fast changes create disproportionate resistance
+        # This is why phased rollouts produce less entropy than sudden restructuring
+        rate_factor = 1.0 + math.log(max(1.0, rate_of_change))
+
+        return min(1.0, base * rate_factor)
+
+    @staticmethod
+    def check_claim(disturbance_magnitude: float,
+                    counterforce_modeled: bool,
+                    rate_of_change: float = 1.0) -> tuple[float, str | None]:
+        """Check whether a claim accounts for equilibrium resistance.
+
+        Returns (penalty, violation_message_or_None).
+        """
+        if disturbance_magnitude < EquilibriumChecker.MINOR_THRESHOLD:
+            return 0.0, None  # Small changes don't trigger significant resistance
+
+        expected_counterforce = EquilibriumChecker.estimate_counterforce(
+            disturbance_magnitude, rate_of_change
+        )
+
+        if not counterforce_modeled:
+            # Penalty scales with how much resistance was ignored
+            penalty = min(0.35, expected_counterforce * 0.5)
+
+            if disturbance_magnitude >= EquilibriumChecker.MAJOR_THRESHOLD:
+                severity = "severe"
+            elif disturbance_magnitude >= EquilibriumChecker.MODERATE_THRESHOLD:
+                severity = "significant"
+            else:
+                severity = "moderate"
+
+            msg = (f"Le Chatelier: {severity} disturbance ({disturbance_magnitude:.0%}) "
+                   f"without modeling counterforce (expected resistance: "
+                   f"{expected_counterforce:.2f})")
+            return penalty, msg
+
+        return 0.0, None
+
+
 def build_ledger_from_scenario(scenario: dict) -> SystemLedger:
     """Build a SystemLedger from scenario cost_transfers data.
 

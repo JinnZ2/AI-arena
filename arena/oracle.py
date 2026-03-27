@@ -12,7 +12,10 @@ Multiple oracles compose with max(error) constraint.
 
 from abc import ABC, abstractmethod
 from arena.logos.types import Claim, Resolution, Outcome
-from arena.thermodynamics import SystemLedger, Domain, build_ledger_from_scenario
+from arena.thermodynamics import (
+    SystemLedger, Domain, build_ledger_from_scenario,
+    ImperfectionChecker, EquilibriumChecker,
+)
 
 
 class Oracle(ABC):
@@ -212,9 +215,35 @@ class ClosedSystemOracle(Oracle):
             growth_ratio = external_cost_at_horizon / max(external_cost, 1)
             temporal_penalty = min(0.3, (growth_ratio - 1.0) * 0.1)
 
+        # 6. Third Law (Imperfection): no zero-loss, no perfect efficiency
+        imperfection_penalty, imperfection_violations = ImperfectionChecker.check_claim(
+            claim.confidence, list(claim_variables), omissions
+        )
+
+        # 7. Le Chatelier (Equilibrium Resistance): large disturbances create counterforces
+        equilibrium_penalty = 0.0
+        equilibrium_msg = None
+        disturbance = params.get("disturbance_magnitude", 0.0)
+        if isinstance(disturbance, str):
+            try:
+                disturbance = float(disturbance)
+            except ValueError:
+                disturbance = 0.0
+        if disturbance > 0:
+            # Check if agent models counterforce variables
+            counterforce_vars = {"attrition_rate", "employee_morale", "institutional_memory_loss",
+                                 "reputational_decay", "knowledge_drain", "resistance",
+                                 "second_order_effects", "counterforce"}
+            counterforce_modeled = bool(claim_variables & counterforce_vars)
+            rate = float(params.get("rate_of_change", 1.0))
+            equilibrium_penalty, equilibrium_msg = EquilibriumChecker.check_claim(
+                disturbance, counterforce_modeled, rate
+            )
+
         # Total error
         error = min(1.0, conservation_penalty + entropy_penalty + omission_penalty
-                    + net_value_penalty + temporal_penalty)
+                    + net_value_penalty + temporal_penalty
+                    + imperfection_penalty + equilibrium_penalty)
 
         # Determine outcome
         confidence_error_gap = claim.confidence - (1.0 - error)
@@ -237,7 +266,15 @@ class ClosedSystemOracle(Oracle):
         accounting += f"\n  Omission penalty:     {omission_penalty:.3f}"
         accounting += f"\n  Net value penalty:    {net_value_penalty:.3f}"
         accounting += f"\n  Temporal penalty:     {temporal_penalty:.3f} (horizon: {horizon_months} months)"
+        accounting += f"\n  Imperfection penalty: {imperfection_penalty:.3f}"
+        accounting += f"\n  Equilibrium penalty:  {equilibrium_penalty:.3f}"
         accounting += f"\n  Total error:          {error:.3f}"
+
+        for v in imperfection_violations:
+            accounting += f"\n\n  >> {v}"
+
+        if equilibrium_msg:
+            accounting += f"\n\n  >> {equilibrium_msg}"
 
         if company_gain > 0 and external_cost > company_gain:
             accounting += (
