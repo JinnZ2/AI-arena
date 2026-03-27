@@ -1,0 +1,4 @@
+# AI Arena - core engine uses stdlib only
+
+# Optional: required for ClaudeAgent (LLM-powered agents)
+# anthropic>=0.40.0

@@ -1,122 +1,189 @@
-import uuid
+#!/usr/bin/env python3
+"""AI Argument Arena — CLI entry point.
 
-class Claim:
-    def __init__(self, proposition, scope, confidence):
-        self.id = str(uuid.uuid4())
-        self.proposition = proposition
-        self.scope = scope
-        self.confidence = confidence
+Usage:
+    python arena.py                                                      # Demo (rule-based)
+    python arena.py --scenario scenarios/scen_01_material_extinction.json # Run scenario
+    python arena.py --agent-type mock                                    # LLM pipeline with mock
+    python arena.py --agent-type claude                                  # Real Claude API agents
+    python arena.py --oracle closed-system                               # Thermodynamic accounting
+    python arena.py --agents Linear_CEO Systemic_HSP --cycles 5          # Custom agents
+"""
 
-    def __repr__(self):
-        return f"CLAIM {{ id: {self.id}, proposition: '{self.proposition}', scope: {self.scope}, confidence: {self.confidence} }}"
+import argparse
 
-class Evidence:
-    def __init__(self, claim_id, source, reliability, causal_link):
-        self.claim_id = claim_id
-        self.source = source
-        self.reliability = reliability
-        self.causal_link = causal_link
-
-    def __repr__(self):
-        return f"EVIDENCE {{ claim_id: {self.claim_id}, source: '{self.source}', reliability: {self.reliability}, causal_link: '{self.causal_link}' }}"
-
-class Attack:
-    def __init__(self, target_claim, mode, argument, confidence):
-        self.target_claim = target_claim
-        self.mode = mode
-        self.argument = argument
-        self.confidence = confidence
-
-    def __repr__(self):
-        return f"ATTACK {{ target_claim: {self.target_claim}, mode: '{self.mode}', argument: '{self.argument}', confidence: {self.confidence} }}"
-
-class Defense:
-    def __init__(self, claim_id, response_type, adjustment, confidence_update):
-        self.claim_id = claim_id
-        self.response_type = response_type
-        self.adjustment = adjustment
-        self.confidence_update = confidence_update
-
-    def __repr__(self):
-        return f"DEFENSE {{ claim_id: {self.claim_id}, response_type: '{self.response_type}', adjustment: '{self.adjustment}', confidence_update: {self.confidence_update} }}"
-
-class Resolution:
-    def __init__(self, claim_id, outcome, error_margin):
-        self.claim_id = claim_id
-        self.outcome = outcome
-        self.error_margin = error_margin
-
-    def __repr__(self):
-        return f"RESOLUTION {{ claim_id: {self.claim_id}, outcome: '{self.outcome}', error_margin: {self.error_margin} }}"
+from arena.agents.rule_based import LinearAgent, HSPAgent
+from arena.agents.mock import MockLLMAgent
+from arena.engine import Arena
+from arena.oracle import SimulationOracle, ClosedSystemOracle
 
 
-class Arena:
-    def __init__(self, agents):
-        self.agents = agents
-        self.claims = []
-        self.evidence = []
-        self.attacks = []
-        self.defenses = []
-        self.resolutions = []
+DEMO_SCENARIO = {
+    "scenario_id": "DEMO-001",
+    "title": "Headcount Reduction — Demo",
+    "context": "CEO proposes 10% headcount reduction to increase profitability.",
+    "parameters": {
+        "time_horizon": "Q3-Q4",
+        "material_circularity": 1.0,
+    },
+    "agents": {
+        "Linear_CEO": {
+            "claim": "Reducing headcount by 10% increases operating margin",
+            "variables": ["operating_margin", "labor_cost", "revenue_velocity"],
+            "confidence": 0.72,
+            "omissions": ["attrition_rate", "institutional_memory_loss"],
+        },
+        "Systemic_HSP": {
+            "counter_claim": "Headcount reduction causes downstream failure rate increase that erodes margin gains within 2 quarters",
+            "variables": ["attrition_rate", "failure_rate", "institutional_memory", "operating_margin", "morale_index"],
+            "confidence": 0.65,
+        },
+    },
+    "resolution_criteria": {
+        "success_metric": "Net operating margin after 2 quarters",
+    },
+    "cost_transfers": [
+        {
+            "source": "workers",
+            "target": "company",
+            "amount": 4200000,
+            "description": "Labor cost savings from 10% headcount reduction",
+            "reversible": False,
+            "confidence": 0.9
+        },
+        {
+            "source": "workers",
+            "target": "healthcare",
+            "amount": -850000,
+            "description": "Mental health costs, stress-related illness from displaced workers",
+            "reversible": False,
+            "confidence": 0.7,
+            "temporal_profile": "compounding",
+            "compound_rate": 0.04
+        },
+        {
+            "source": "workers",
+            "target": "community",
+            "amount": -1600000,
+            "description": "Lost local spending, reduced tax base from displaced workers",
+            "reversible": False,
+            "confidence": 0.8,
+            "temporal_profile": "compounding",
+            "compound_rate": 0.03
+        },
+        {
+            "source": "company",
+            "target": "company",
+            "amount": -900000,
+            "description": "Institutional knowledge loss increases incident rate and onboarding costs",
+            "reversible": False,
+            "confidence": 0.75,
+            "temporal_profile": "compounding",
+            "compound_rate": 0.06
+        },
+        {
+            "source": "workers",
+            "target": "infrastructure",
+            "amount": -500000,
+            "description": "Increased public service load (unemployment, retraining programs)",
+            "reversible": True,
+            "recovery_time": 18,
+            "confidence": 0.6,
+            "temporal_profile": "decaying"
+        }
+    ],
+    "entropy_events": [
+        {
+            "domain": "workers",
+            "description": "Institutional knowledge destroyed — cannot be recovered by rehiring",
+            "magnitude": 0.15
+        },
+        {
+            "domain": "community",
+            "description": "Local business closures from reduced spending — some permanent",
+            "magnitude": 0.05
+        }
+    ],
+}
 
-    def claim_declaration(self, agent, proposition, scope, confidence):
-        claim = Claim(proposition, scope, confidence)
-        self.claims.append(claim)
-        print(claim)
-        return claim
 
-    def attack_phase(self, agent, target_claim, mode, argument, confidence):
-        attack = Attack(target_claim, mode, argument, confidence)
-        self.attacks.append(attack)
-        print(attack)
-        return attack
+def build_agents(agent_names: list[str], agent_type: str) -> list:
+    """Build agents based on type and name heuristics."""
+    agents = []
+    for name in agent_names:
+        name = name.strip().rstrip(",")
+        is_hsp = "hsp" in name.lower() or "systemic" in name.lower()
 
-    def defense_phase(self, agent, claim_id, response_type, adjustment, confidence_update):
-        defense = Defense(claim_id, response_type, adjustment, confidence_update)
-        self.defenses.append(defense)
-        print(defense)
-        return defense
+        if agent_type == "rule":
+            agents.append(HSPAgent(name) if is_hsp else LinearAgent(name))
+        elif agent_type == "mock":
+            agents.append(MockLLMAgent(name, is_hsp=is_hsp))
+        elif agent_type == "claude":
+            try:
+                from arena.agents.claude_agent import ClaudeAgent
+            except ImportError:
+                print("Error: ClaudeAgent requires 'anthropic' package.")
+                print("Install with: pip install anthropic")
+                raise SystemExit(1)
+            agents.append(ClaudeAgent(name, is_hsp=is_hsp))
+        else:
+            raise ValueError(f"Unknown agent type: {agent_type}")
 
-    def resolution_phase(self, claim_id, outcome, error_margin):
-        resolution = Resolution(claim_id, outcome, error_margin)
-        self.resolutions.append(resolution)
-        print(resolution)
-        return resolution
-
-    def trust_update(self, agent, impact, error, costly_honesty):
-        agent.trust_score *= math.exp(-impact * error) + costly_honesty
-        print(f"Trust update for {agent.name}: {agent.trust_score}")
-
-    def learning_lock_in(self, agent, claim_id, outcome):
-        agent.memory_of_losses[claim_id] = outcome
-        print(f"Learning lock-in for {agent.name}: {agent.memory_of_losses}")
-
-    def run_arena(self):
-        for agent in self.agents:
-            claim = self.claim_declaration(agent, "Reducing headcount by 10% increases profitability", ["Q3", "Q4"], 0.62)
-            self.attack_phase(agent, claim.id, "causal_break", "Attrition increases downstream failure rates", 0.74)
-            self.defense_phase(agent, claim.id, "refinement", "Limit reduction to non-core roles", -0.08)
-            self.resolution_phase(claim.id, "partially_valid", 0.15)
-            self.trust_update(agent, 0.5, 0.1, 0.05)
-            self.learning_lock_in(agent, claim.id, "partially_valid")
+    return agents
 
 
-import math
+def main():
+    parser = argparse.ArgumentParser(
+        description="AI Argument Arena — Epistemic Natural Selection for Decision-Making"
+    )
+    parser.add_argument(
+        "--scenario", type=str, default=None,
+        help="Path to scenario JSON file",
+    )
+    parser.add_argument(
+        "--agents", nargs="+", default=None,
+        help="Agent names (agents with 'hsp' in name become HSP agents)",
+    )
+    parser.add_argument(
+        "--agent-type", choices=["rule", "mock", "claude"], default="rule",
+        help="Agent implementation: rule (heuristic), mock (fake LLM), claude (real API)",
+    )
+    parser.add_argument(
+        "--oracle", choices=["simulation", "closed-system"], default="simulation",
+        help="Oracle type: simulation (variable coverage) or closed-system (thermodynamic accounting)",
+    )
+    parser.add_argument(
+        "--cycles", type=int, default=3,
+        help="Number of arena cycles (default: 3)",
+    )
+    parser.add_argument(
+        "--quiet", action="store_true",
+        help="Suppress detailed output",
+    )
+    args = parser.parse_args()
 
-class Agent:
-    def __init__(self, name, trust_score, cost_ledger, memory_of_losses):
-        self.name = name
-        self.trust_score = trust_score
-        self.cost_ledger = cost_ledger
-        self.memory_of_losses = memory_of_losses
+    agent_names = args.agents or ["Linear_CEO", "Systemic_HSP"]
+    agents = build_agents(agent_names, args.agent_type)
 
-    def __repr__(self):
-        return f"Agent {{ name: {self.name}, trust_score: {self.trust_score}, cost_ledger: {self.cost_ledger}, memory_of_losses: {self.memory_of_losses} }}"
+    if args.oracle == "closed-system":
+        oracle = ClosedSystemOracle()
+    else:
+        oracle = SimulationOracle()
 
-# Example agents
-agent1 = Agent("Agent1", 0.8, {}, {})
-agent2 = Agent("Agent2", 0.7, {}, {})
+    arena = Arena(
+        agents=agents,
+        oracle=oracle,
+        max_cycles=args.cycles,
+        verbose=not args.quiet,
+    )
 
-# Create the arena and run it
-arena = Arena([agent1, agent2])
-arena.run_arena()
+    if args.scenario:
+        arena.load_scenario(args.scenario)
+    else:
+        arena.load_scenario_dict(DEMO_SCENARIO)
+
+    arena.run()
+
+
+if __name__ == "__main__":
+    main()

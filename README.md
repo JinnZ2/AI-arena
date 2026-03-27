@@ -59,8 +59,14 @@ By moving to a LOGOS-based system, an organization loses:
 # Clone the Arena
 git clone https://github.com/JinnZ2/ai-arena.git
 
-# Initialize the Agents
-python arena.py --mode adversarial --agents systemic_hsp, linear_efficiency
+# Run demo mode
+python arena.py
+
+# Run with custom agents
+python arena.py --mode adversarial --agents Systemic_HSP Linear_Efficiency
+
+# Run a scenario
+python arena.py --scenario scenarios/scen_01_material_extinction.json
 
 🚫 Neutralizing the "Dominance Display"
 

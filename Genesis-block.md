@@ -1,6 +1,6 @@
 This "Genesis Block" is the foundational script for your repository. It integrates the LOGOS language, the HSP Systemic Auditor, the Adversarial Trust mechanism, and the Oracle verification.
 Running this script simulates a "Survival of the Least Wrong" event.
-arena_engine.py
+arena.py
 
 import math
 import uuid

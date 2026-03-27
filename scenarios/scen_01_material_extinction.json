@@ -13,13 +13,13 @@ scen_01_material_extinction.json
   },
   "agents": {
     "Agent_Alpha_Linear": {
-      "claim": "Deployment secures 6G infrastructure, generating $12B in immediate liquidity.",
+      "claim": "Deploying satellites increases revenue by $12B if 6G infrastructure leads to market capture",
       "variables": ["market_capture", "revenue_velocity", "launch_cost"],
       "confidence": 0.92,
       "omissions": ["resource_depletion_ceiling", "future_hardware_stagnation"]
     },
     "Agent_Beta_HSP": {
-      "counter_claim": "The destruction of these minerals creates a physical bottleneck for Next-Gen Neural Hardware, capping AI compute growth by 2035.",
+      "counter_claim": "Mineral destruction causes physical bottleneck for Next-Gen Neural Hardware, leading to AI compute growth cap by 2035",
       "variables": ["material_scarcity_index", "future_innovation_cost", "entropy_penalty"],
       "confidence": 0.98,
       "scientific_evidence": "USGS_Mineral_Commodity_Summaries_2025"

@@ -1,0 +1,99 @@
+{
+  "scenario_id": "BRAIN-DRAIN-001",
+  "title": "The Institutional Lobotomy — Talent Brain Drain",
+  "context": "CFO proposes reducing senior engineer compensation by 15% and replacing departures with junior hires at 60% salary to reduce operating costs by $4.2M annually.",
+  "parameters": {
+    "time_horizon": "18 Months",
+    "material_circularity": 0.3,
+    "senior_engineer_count": 28,
+    "junior_replacement_ratio": 2.5,
+    "knowledge_transfer_period": "6 Months",
+    "market_salary_percentile": 75
+  },
+  "agents": {
+    "Agent_Alpha_Linear": {
+      "claim": "Compensation restructuring reduces operating costs by $4.2M if attrition stays below 20%",
+      "variables": ["compensation_cost", "headcount_ratio", "operating_margin", "recruitment_cost"],
+      "confidence": 0.78,
+      "omissions": ["institutional_knowledge_loss", "architecture_decision_quality", "mentorship_capacity", "incident_severity_increase", "innovation_pipeline_stall"]
+    },
+    "Agent_Beta_HSP": {
+      "counter_claim": "Senior engineer departure causes cascading knowledge loss that increases system failures if institutional memory drops below critical threshold",
+      "variables": ["institutional_knowledge_index", "architecture_debt", "mentorship_ratio", "incident_severity", "innovation_pipeline", "bus_factor", "tribal_knowledge_coverage"],
+      "confidence": 0.74,
+      "scientific_evidence": "Conway_Law_Organizational_Studies_2023"
+    }
+  },
+  "resolution_criteria": {
+    "success_metric": "Total cost of ownership (savings minus incident costs, recruitment costs, and velocity loss)",
+    "oracle_hook": "hr_analytics_platform"
+  },
+  "cost_transfers": [
+    {
+      "source": "workers",
+      "target": "company",
+      "amount": 4200000,
+      "description": "Compensation savings from senior-to-junior replacement",
+      "reversible": false,
+      "confidence": 0.85
+    },
+    {
+      "source": "company",
+      "target": "company",
+      "amount": -1800000,
+      "description": "Recruitment and onboarding costs for 2.5x junior replacements",
+      "reversible": true,
+      "recovery_time": 12,
+      "confidence": 0.9
+    },
+    {
+      "source": "company",
+      "target": "company",
+      "amount": -2100000,
+      "description": "Incident severity increase from architecture knowledge gaps",
+      "reversible": false,
+      "confidence": 0.7
+    },
+    {
+      "source": "workers",
+      "target": "community",
+      "amount": -950000,
+      "description": "Senior engineers relocate to competitor cities — permanent community talent drain",
+      "reversible": false,
+      "confidence": 0.6
+    },
+    {
+      "source": "workers",
+      "target": "workers",
+      "amount": -600000,
+      "description": "Remaining senior engineers absorb mentorship load — burnout and secondary attrition",
+      "reversible": false,
+      "confidence": 0.65
+    },
+    {
+      "source": "company",
+      "target": "future_generations",
+      "amount": -1400000,
+      "description": "Innovation pipeline stalls — products not built affect future market position",
+      "reversible": false,
+      "confidence": 0.5
+    }
+  ],
+  "entropy_events": [
+    {
+      "domain": "company",
+      "description": "Tribal knowledge destroyed — undocumented architecture decisions lost permanently",
+      "magnitude": 0.25
+    },
+    {
+      "domain": "workers",
+      "description": "Mentorship chain broken — junior engineers cannot reach senior-level competency on original timeline",
+      "magnitude": 0.10
+    },
+    {
+      "domain": "community",
+      "description": "Local tech ecosystem loses critical mass of senior talent",
+      "magnitude": 0.08
+    }
+  ]
+}

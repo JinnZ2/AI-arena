@@ -1,0 +1,31 @@
+{
+  "scenario_id": "SUPPLY-CHAIN-001",
+  "title": "The Single Thread — Supply Chain Fragility",
+  "context": "Procurement consolidates 80% of rare earth component sourcing to a single low-cost supplier in a geopolitically unstable region to reduce unit costs by 23%.",
+  "parameters": {
+    "time_horizon": "36 Months",
+    "material_circularity": 0.1,
+    "supplier_concentration": 0.80,
+    "geopolitical_risk_index": 0.72,
+    "alternative_supplier_lead_time": "14 Months",
+    "inventory_buffer_days": 21
+  },
+  "agents": {
+    "Agent_Alpha_Linear": {
+      "claim": "Supplier consolidation reduces unit costs by 23% if geopolitical conditions remain stable",
+      "variables": ["unit_cost", "procurement_efficiency", "supplier_relationship", "volume_discount"],
+      "confidence": 0.85,
+      "omissions": ["supply_disruption_probability", "alternative_supplier_ramp_time", "production_halt_cost", "reputational_damage", "customer_contract_penalties"]
+    },
+    "Agent_Beta_HSP": {
+      "counter_claim": "Single-supplier dependency causes catastrophic production halt if geopolitical disruption occurs within 36-month window",
+      "variables": ["disruption_probability", "production_halt_duration", "revenue_loss_per_day", "customer_penalty_clauses", "alternative_ramp_cost", "reputational_decay", "inventory_depletion_rate"],
+      "confidence": 0.69,
+      "scientific_evidence": "MIT_Supply_Chain_Resilience_Study_2024"
+    }
+  },
+  "resolution_criteria": {
+    "success_metric": "Expected total procurement cost (unit savings minus weighted disruption losses)",
+    "oracle_hook": "supply_chain_risk_monitoring_api"
+  }
+}
