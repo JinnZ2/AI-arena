@@ -15,6 +15,7 @@ from arena.logos.types import Claim, Resolution, Outcome
 from arena.thermodynamics import (
     SystemLedger, Domain, build_ledger_from_scenario,
     ImperfectionChecker, EquilibriumChecker,
+    AtomicLedger, build_atomic_ledger_from_scenario,
 )
 
 
@@ -240,10 +241,23 @@ class ClosedSystemOracle(Oracle):
                 disturbance, counterforce_modeled, rate
             )
 
+        # 8. Atomic tiebreaker: drill below dollar aggregation to resource atoms
+        atomic_penalty = 0.0
+        atomic_ledger = build_atomic_ledger_from_scenario(scenario_params)
+        atomic_coverage = 1.0
+        if atomic_ledger.atoms:
+            atomic_coverage = atomic_ledger.coverage_score(claim_variables)
+            # Penalty for missing resource types the scenario tracks
+            atomic_penalty = min(0.25, (1.0 - atomic_coverage) * 0.3)
+            # Extra penalty for destroyed atoms the claim doesn't account for
+            if atomic_ledger.destroyed_atoms and not has_external_vars:
+                atomic_penalty += min(0.15, len(atomic_ledger.destroyed_atoms) * 0.03)
+
         # Total error
         error = min(1.0, conservation_penalty + entropy_penalty + omission_penalty
                     + net_value_penalty + temporal_penalty
-                    + imperfection_penalty + equilibrium_penalty)
+                    + imperfection_penalty + equilibrium_penalty
+                    + atomic_penalty)
 
         # Determine outcome
         confidence_error_gap = claim.confidence - (1.0 - error)
@@ -268,7 +282,11 @@ class ClosedSystemOracle(Oracle):
         accounting += f"\n  Temporal penalty:     {temporal_penalty:.3f} (horizon: {horizon_months} months)"
         accounting += f"\n  Imperfection penalty: {imperfection_penalty:.3f}"
         accounting += f"\n  Equilibrium penalty:  {equilibrium_penalty:.3f}"
+        accounting += f"\n  Atomic penalty:       {atomic_penalty:.3f} (coverage: {atomic_coverage:.0%})"
         accounting += f"\n  Total error:          {error:.3f}"
+
+        if atomic_ledger.atoms:
+            accounting += f"\n\n{atomic_ledger.summary()}"
 
         for v in imperfection_violations:
             accounting += f"\n\n  >> {v}"
