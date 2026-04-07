@@ -104,6 +104,61 @@ DEMO_SCENARIO = {
             "magnitude": 0.05
         }
     ],
+    "resource_atoms": [
+        {
+            "type": "person",
+            "quantity": 45,
+            "unit_label": "employees displaced",
+            "domain": "workers",
+            "consumed": True,
+            "destroyed": False,
+            "reversible": True,
+            "description": "45 workers with families, mortgages, health needs — not a line item"
+        },
+        {
+            "type": "knowledge_unit",
+            "quantity": 12,
+            "unit_label": "undocumented system architectures",
+            "domain": "company",
+            "destroyed": True,
+            "reversible": False,
+            "description": "Tribal knowledge in 12 critical systems — exists only in people's heads"
+        },
+        {
+            "type": "relationship",
+            "quantity": 28,
+            "unit_label": "mentorship bonds",
+            "domain": "workers",
+            "destroyed": True,
+            "reversible": False,
+            "description": "Senior-junior mentorship pairs that took years to build"
+        },
+        {
+            "type": "opportunity",
+            "quantity": 6,
+            "unit_label": "innovation projects foreclosed",
+            "domain": "company",
+            "destroyed": True,
+            "reversible": False,
+            "description": "Projects that required displaced domain expertise — now impossible"
+        },
+        {
+            "type": "person_hour",
+            "quantity": 8400,
+            "unit_label": "annual productive hours lost",
+            "domain": "company",
+            "consumed": True,
+            "description": "Remaining staff absorb extra work — productivity per person drops"
+        },
+        {
+            "type": "relationship",
+            "quantity": 135,
+            "unit_label": "community economic connections",
+            "domain": "community",
+            "consumed": True,
+            "description": "Local businesses, childcare, services that depended on displaced workers' spending"
+        }
+    ],
 }
 
 

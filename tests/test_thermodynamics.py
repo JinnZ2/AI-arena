@@ -5,6 +5,7 @@ import unittest
 from arena.thermodynamics import (
     SystemLedger, Domain, CostTransfer, EntropyEvent, TemporalProfile,
     build_ledger_from_scenario, ImperfectionChecker, EquilibriumChecker,
+    ResourceType, ResourceAtom, AtomicLedger, build_atomic_ledger_from_scenario,
 )
 from arena.trust import MemoryEntry
 from arena.oracle import ClosedSystemOracle
@@ -485,6 +486,183 @@ class TestEquilibriumChecker(unittest.TestCase):
         # Fast moderate can exceed slow large due to rate amplifier
         self.assertGreater(cf_fast_moderate, 0)
         self.assertGreater(cf_slow_large, 0)
+
+
+class TestAtomicLedger(unittest.TestCase):
+    """Atomic accounting: indivisible resource units that can't hide in aggregation."""
+
+    def test_add_and_count(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON, 45, "employees", Domain.WORKERS)
+        ledger.add(ResourceType.KNOWLEDGE_UNIT, 12, "architectures", Domain.COMPANY,
+                  destroyed=True, reversible=False)
+        self.assertEqual(ledger.total_atoms, 2)
+
+    def test_destroyed_atoms(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON, 45, "employees", Domain.WORKERS)
+        ledger.add(ResourceType.KNOWLEDGE_UNIT, 12, "architectures", Domain.COMPANY,
+                  destroyed=True, reversible=False)
+        self.assertEqual(len(ledger.destroyed_atoms), 1)
+        self.assertEqual(ledger.irreversible_destruction_count, 12)
+
+    def test_consumed_atoms(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON_HOUR, 8400, "hours", Domain.COMPANY, consumed=True)
+        self.assertEqual(len(ledger.consumed_atoms), 1)
+
+    def test_atoms_by_type(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.RELATIONSHIP, 28, "mentorship", Domain.WORKERS)
+        ledger.add(ResourceType.RELATIONSHIP, 135, "community", Domain.COMMUNITY)
+        totals = ledger.atoms_by_type
+        self.assertEqual(totals[ResourceType.RELATIONSHIP], 163)
+
+    def test_atoms_by_domain(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON, 45, "people", Domain.WORKERS)
+        ledger.add(ResourceType.RELATIONSHIP, 135, "connections", Domain.COMMUNITY)
+        by_domain = ledger.atoms_by_domain
+        self.assertEqual(len(by_domain[Domain.WORKERS]), 1)
+        self.assertEqual(len(by_domain[Domain.COMMUNITY]), 1)
+
+    def test_coverage_score_full_coverage(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON, 45, "people", Domain.WORKERS)
+        ledger.add(ResourceType.KNOWLEDGE_UNIT, 12, "knowledge", Domain.COMPANY)
+        # Variables that cover both types
+        score = ledger.coverage_score({"employee_count", "institutional_knowledge"})
+        self.assertEqual(score, 1.0)
+
+    def test_coverage_score_partial(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON, 45, "people", Domain.WORKERS)
+        ledger.add(ResourceType.KNOWLEDGE_UNIT, 12, "knowledge", Domain.COMPANY)
+        ledger.add(ResourceType.RELATIONSHIP, 28, "bonds", Domain.WORKERS)
+        # Only covers PERSON, not KNOWLEDGE or RELATIONSHIP
+        score = ledger.coverage_score({"headcount"})
+        self.assertLess(score, 1.0)
+        self.assertGreater(score, 0.0)
+
+    def test_coverage_score_zero(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON, 45, "people", Domain.WORKERS)
+        # Variable that covers nothing
+        score = ledger.coverage_score({"revenue_growth"})
+        self.assertEqual(score, 0.0)
+
+    def test_coverage_score_empty_ledger(self):
+        ledger = AtomicLedger()
+        score = ledger.coverage_score({"anything"})
+        self.assertEqual(score, 1.0)  # Nothing to miss
+
+    def test_summary_output(self):
+        ledger = AtomicLedger()
+        ledger.add(ResourceType.PERSON, 45, "employees displaced", Domain.WORKERS,
+                  consumed=True, description="Real people")
+        ledger.add(ResourceType.KNOWLEDGE_UNIT, 12, "system architectures", Domain.COMPANY,
+                  destroyed=True, reversible=False, description="Tribal knowledge")
+        summary = ledger.summary()
+        self.assertIn("ATOMIC LEDGER", summary)
+        self.assertIn("employees displaced", summary)
+        self.assertIn("DESTROYED IRREVERSIBLE", summary)
+        self.assertIn("CONSUMED", summary)
+
+    def test_build_from_scenario(self):
+        scenario = {
+            "resource_atoms": [
+                {"type": "person", "quantity": 10, "unit_label": "workers",
+                 "domain": "workers", "consumed": True},
+                {"type": "knowledge_unit", "quantity": 5, "unit_label": "systems",
+                 "domain": "company", "destroyed": True, "reversible": False},
+            ],
+        }
+        ledger = build_atomic_ledger_from_scenario(scenario)
+        self.assertEqual(ledger.total_atoms, 2)
+        self.assertEqual(len(ledger.destroyed_atoms), 1)
+
+    def test_build_empty_scenario(self):
+        ledger = build_atomic_ledger_from_scenario({})
+        self.assertEqual(ledger.total_atoms, 0)
+
+
+class TestAtomicTiebreaker(unittest.TestCase):
+    """Integration: atomic accounting as oracle tiebreaker."""
+
+    def test_atomic_penalty_applied_to_narrow_claim(self):
+        oracle = ClosedSystemOracle()
+        claim = Claim("Cost cutting increases margin if demand holds",
+                      ["Q3-Q4"], 0.7)
+        scenario = {
+            "parameters": {"time_horizon": "12 Months"},
+            "agents": {
+                "Linear": {
+                    "claim": "Cost cutting increases margin if demand holds",
+                    "variables": ["operating_margin"],  # Narrow — misses atoms
+                    "confidence": 0.7,
+                    "omissions": [],
+                },
+            },
+            "cost_transfers": [
+                {"source": "workers", "target": "company", "amount": 1000000,
+                 "description": "Savings"},
+            ],
+            "resource_atoms": [
+                {"type": "person", "quantity": 20, "unit_label": "workers",
+                 "domain": "workers", "consumed": True},
+                {"type": "knowledge_unit", "quantity": 8, "unit_label": "systems",
+                 "domain": "company", "destroyed": True, "reversible": False},
+                {"type": "relationship", "quantity": 15, "unit_label": "mentorships",
+                 "domain": "workers", "destroyed": True, "reversible": False},
+            ],
+        }
+        resolution = oracle.resolve(claim, scenario)
+        self.assertIn("ATOMIC LEDGER", resolution.system_accounting)
+        self.assertIn("Atomic penalty", resolution.system_accounting)
+
+    def test_broad_claim_lower_atomic_penalty(self):
+        oracle = ClosedSystemOracle()
+        scenario = {
+            "parameters": {"time_horizon": "12 Months"},
+            "agents": {
+                "Narrow": {
+                    "claim": "Cutting costs increases margin if revenue holds",
+                    "variables": ["operating_margin"],
+                    "confidence": 0.7,
+                    "omissions": [],
+                },
+                "Broad": {
+                    "counter_claim": "Cutting costs causes knowledge drain if workers leave",
+                    "variables": ["operating_margin", "institutional_knowledge",
+                                  "employee_morale", "innovation_pipeline"],
+                    "confidence": 0.6,
+                },
+            },
+            "cost_transfers": [
+                {"source": "workers", "target": "company", "amount": 1000000,
+                 "description": "Savings"},
+            ],
+            "resource_atoms": [
+                {"type": "person", "quantity": 20, "unit_label": "workers",
+                 "domain": "workers"},
+                {"type": "knowledge_unit", "quantity": 8, "unit_label": "systems",
+                 "domain": "company", "destroyed": True},
+                {"type": "relationship", "quantity": 15, "unit_label": "mentorships",
+                 "domain": "workers", "destroyed": True},
+                {"type": "opportunity", "quantity": 3, "unit_label": "projects",
+                 "domain": "company", "destroyed": True},
+            ],
+        }
+        narrow_claim = Claim("Cutting costs increases margin if revenue holds",
+                             ["Q3-Q4"], 0.7)
+        broad_claim = Claim("Cutting costs causes knowledge drain if workers leave",
+                            ["Q3-Q4"], 0.6)
+
+        narrow_res = oracle.resolve(narrow_claim, scenario)
+        broad_res = oracle.resolve(broad_claim, scenario)
+
+        # Broad claim should have lower error (better atomic coverage)
+        self.assertLess(broad_res.error_margin, narrow_res.error_margin)
 
 
 class TestClosedSystemOraclePhysicsAxioms(unittest.TestCase):

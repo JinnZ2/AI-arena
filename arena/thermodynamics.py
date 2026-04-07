@@ -338,6 +338,227 @@ class SystemLedger:
         return "\n".join(lines)
 
 
+class ResourceType(Enum):
+    """Categories of indivisible resources. You can't split an atom."""
+    PERSON = "person"           # Individual human beings
+    PERSON_HOUR = "person_hour" # Hours of human labor
+    KNOWLEDGE_UNIT = "knowledge_unit"  # Discrete pieces of institutional knowledge
+    MATERIAL_KG = "material_kg"  # Physical materials in kilograms
+    ENERGY_KWH = "energy_kwh"   # Energy in kilowatt-hours
+    RELATIONSHIP = "relationship"  # Trust bonds, mentorship connections
+    HABITAT_UNIT = "habitat_unit"  # Ecosystem capacity units
+    OPPORTUNITY = "opportunity"  # Future options that can be foreclosed
+
+
+@dataclass
+class ResourceAtom:
+    """An indivisible unit of a resource. Atoms don't lie.
+
+    Dollars are abstractions. You can hide costs in dollar aggregation.
+    You can't hide a person. You can't hide a kilogram of lithium.
+    You can't hide a mentorship relationship that no longer exists.
+
+    Each atom tracks:
+    - What it is (type and unit count)
+    - Where it lives (domain)
+    - Whether it still exists or was consumed/destroyed
+    - Whether its destruction is reversible
+    """
+    resource_type: ResourceType
+    quantity: float          # Number of indivisible units
+    unit_label: str          # Human-readable ("senior engineers", "kg tantalum")
+    domain: Domain           # Where this resource currently lives
+    consumed: bool = False   # Has this resource been used up?
+    destroyed: bool = False  # Has it been permanently destroyed?
+    reversible: bool = True  # Can the destruction be undone?
+    description: str = ""
+
+
+@dataclass
+class AtomicLedger:
+    """Tracks indivisible resource units across all domains.
+
+    When dollar-level accounting produces a tie, atomic accounting
+    breaks it. The claim that accounts for more atoms of the system
+    wins — because atoms are the ground truth beneath dollar abstractions.
+
+    Conservation at the atomic level:
+    - Every person displaced is a person (not a salary line item)
+    - Every kg of material burned is a kg (not a procurement cost)
+    - Every mentorship relationship broken is a relationship (not an HR metric)
+    - Every foreclosed opportunity is an option that no longer exists
+
+    You can aggregate dollars and hide the damage.
+    You cannot aggregate atoms and hide the damage.
+    """
+    atoms: list[ResourceAtom] = field(default_factory=list)
+
+    def add(
+        self,
+        resource_type: ResourceType,
+        quantity: float,
+        unit_label: str,
+        domain: Domain,
+        consumed: bool = False,
+        destroyed: bool = False,
+        reversible: bool = True,
+        description: str = "",
+    ):
+        """Register a resource atom in the ledger."""
+        self.atoms.append(ResourceAtom(
+            resource_type=resource_type,
+            quantity=quantity,
+            unit_label=unit_label,
+            domain=domain,
+            consumed=consumed,
+            destroyed=destroyed,
+            reversible=reversible,
+            description=description,
+        ))
+
+    @property
+    def total_atoms(self) -> int:
+        """Total resource atoms tracked."""
+        return len(self.atoms)
+
+    @property
+    def consumed_atoms(self) -> list[ResourceAtom]:
+        """Resources that have been consumed."""
+        return [a for a in self.atoms if a.consumed]
+
+    @property
+    def destroyed_atoms(self) -> list[ResourceAtom]:
+        """Resources permanently destroyed (irreversible)."""
+        return [a for a in self.atoms if a.destroyed]
+
+    @property
+    def atoms_by_domain(self) -> dict[Domain, list[ResourceAtom]]:
+        """Group atoms by their domain."""
+        result: dict[Domain, list[ResourceAtom]] = {}
+        for atom in self.atoms:
+            result.setdefault(atom.domain, []).append(atom)
+        return result
+
+    @property
+    def atoms_by_type(self) -> dict[ResourceType, float]:
+        """Total quantity of each resource type."""
+        totals: dict[ResourceType, float] = {}
+        for atom in self.atoms:
+            totals[atom.resource_type] = totals.get(atom.resource_type, 0) + atom.quantity
+        return totals
+
+    @property
+    def destruction_count(self) -> float:
+        """Total quantity of permanently destroyed resources."""
+        return sum(a.quantity for a in self.atoms if a.destroyed)
+
+    @property
+    def irreversible_destruction_count(self) -> float:
+        """Resources destroyed that cannot be recovered."""
+        return sum(a.quantity for a in self.atoms if a.destroyed and not a.reversible)
+
+    def coverage_score(self, claimed_variables: set[str]) -> float:
+        """How many resource atoms does a claim account for?
+
+        This is the tiebreaker. When two claims have similar error scores,
+        the one that accounts for more atoms of the system is more complete.
+
+        Returns fraction of atoms whose resource type is referenced
+        by the claim's variables.
+        """
+        if not self.atoms:
+            return 1.0  # No atoms to miss
+
+        # Map variable names to resource types they might cover
+        variable_coverage = set()
+        for var in claimed_variables:
+            var_lower = var.lower()
+            if any(kw in var_lower for kw in ["headcount", "employee", "engineer",
+                                                "worker", "personnel", "staff", "talent"]):
+                variable_coverage.add(ResourceType.PERSON)
+            if any(kw in var_lower for kw in ["hour", "time", "labor", "velocity",
+                                                "capacity", "workload"]):
+                variable_coverage.add(ResourceType.PERSON_HOUR)
+            if any(kw in var_lower for kw in ["knowledge", "memory", "institutional",
+                                                "tribal", "expertise", "skill"]):
+                variable_coverage.add(ResourceType.KNOWLEDGE_UNIT)
+            if any(kw in var_lower for kw in ["material", "mineral", "resource",
+                                                "supply", "inventory", "lithium",
+                                                "silver", "tantalum"]):
+                variable_coverage.add(ResourceType.MATERIAL_KG)
+            if any(kw in var_lower for kw in ["energy", "power", "electricity",
+                                                "compute", "gpu"]):
+                variable_coverage.add(ResourceType.ENERGY_KWH)
+            if any(kw in var_lower for kw in ["relationship", "mentorship", "trust",
+                                                "morale", "culture", "team"]):
+                variable_coverage.add(ResourceType.RELATIONSHIP)
+            if any(kw in var_lower for kw in ["environment", "ecosystem", "habitat",
+                                                "biodiversity", "pollution"]):
+                variable_coverage.add(ResourceType.HABITAT_UNIT)
+            if any(kw in var_lower for kw in ["opportunity", "innovation", "pipeline",
+                                                "future", "option", "potential"]):
+                variable_coverage.add(ResourceType.OPPORTUNITY)
+
+        # Count how many atom types are covered
+        atom_types_present = set(a.resource_type for a in self.atoms)
+        if not atom_types_present:
+            return 1.0
+
+        covered = len(variable_coverage & atom_types_present)
+        return covered / len(atom_types_present)
+
+    def summary(self) -> str:
+        """Human-readable atomic accounting."""
+        lines = ["=== ATOMIC LEDGER ==="]
+        lines.append(f"Total resource atoms: {self.total_atoms}")
+        lines.append(f"Consumed: {len(self.consumed_atoms)}")
+        lines.append(f"Destroyed: {len(self.destroyed_atoms)} "
+                     f"({self.irreversible_destruction_count:.0f} units irreversible)")
+        lines.append("")
+
+        for rtype, qty in self.atoms_by_type.items():
+            destroyed_qty = sum(a.quantity for a in self.atoms
+                               if a.resource_type == rtype and a.destroyed)
+            status = f" ({destroyed_qty:.0f} destroyed)" if destroyed_qty > 0 else ""
+            lines.append(f"  {rtype.value:20s}: {qty:>10.1f}{status}")
+
+        lines.append("")
+        lines.append("Detailed atoms:")
+        for atom in self.atoms:
+            state = ""
+            if atom.destroyed:
+                state = " [DESTROYED" + ("" if atom.reversible else " IRREVERSIBLE") + "]"
+            elif atom.consumed:
+                state = " [CONSUMED]"
+            lines.append(f"  [{atom.domain.value}] {atom.quantity:.0f} {atom.unit_label}{state}")
+            if atom.description:
+                lines.append(f"    {atom.description}")
+
+        return "\n".join(lines)
+
+
+def build_atomic_ledger_from_scenario(scenario: dict) -> AtomicLedger:
+    """Build an AtomicLedger from scenario resource_atoms data."""
+    ledger = AtomicLedger()
+
+    atoms_data = scenario.get("resource_atoms", [])
+    for entry in atoms_data:
+        resource_type = ResourceType(entry["type"])
+        domain = Domain(entry["domain"])
+        ledger.add(
+            resource_type=resource_type,
+            quantity=entry.get("quantity", 0),
+            unit_label=entry.get("unit_label", ""),
+            domain=domain,
+            consumed=entry.get("consumed", False),
+            destroyed=entry.get("destroyed", False),
+            reversible=entry.get("reversible", True),
+            description=entry.get("description", ""),
+        )
+
+    return ledger
+
+
 class ImperfectionChecker:
     """Third Law enforcement: no process achieves perfect efficiency.
 
