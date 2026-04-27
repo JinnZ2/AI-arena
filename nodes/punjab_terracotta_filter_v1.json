@@ -1,0 +1,26 @@
+{
+  "id": "punjab_terracotta_filter_v1",
+  "title": "Terracotta vessel filtration for household water (illustrative)",
+  "regime": {
+    "geography": "Punjab plains",
+    "climate_zone": "BSh",
+    "population_density": "medium",
+    "technology_level": "preindustrial",
+    "institutional_context": "communal"
+  },
+  "transmission": "lived_oral",
+  "validation_depth": "model_inferred",
+  "carrier_consent": "granted_for_scope",
+  "consent_notes": "Illustrative seed node for the playground schema. Constructed for demonstration only; not derived from any specific community consultation. Scope: schema illustration and pedagogy. Real deployment of any specific practice requires consent from the actual carrier communities.",
+  "carriers": ["unspecified Punjabi households and potter communities (illustrative reference)"],
+  "content_summary": "Unglazed porous terracotta vessels used for household water clarification and evaporative cooling. The pottery practice, the household routine, and the local water sources together constitute the working solution; the vessel alone does not.",
+  "constraints_addressed": [
+    "household water clarification from turbid surface sources",
+    "preindustrial water treatment without manufactured inputs"
+  ],
+  "attribution": [
+    "Synthetic illustrative example. Not a record of any specific community's practice. Cite living practitioners directly if real practice is referenced."
+  ],
+  "parent_ids": [],
+  "parallel_solution_ids": ["anishinaabe_gravity_filtration_v1"]
+}

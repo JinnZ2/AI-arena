@@ -1,0 +1,26 @@
+{
+  "id": "anishinaabe_gravity_filtration_v1",
+  "title": "Layered gravity filtration for boreal household water (illustrative)",
+  "regime": {
+    "geography": "boreal North America",
+    "climate_zone": "Dfb",
+    "population_density": "sparse",
+    "technology_level": "preindustrial",
+    "institutional_context": "tribal"
+  },
+  "transmission": "lived_oral",
+  "validation_depth": "model_inferred",
+  "carrier_consent": "granted_for_scope",
+  "consent_notes": "Illustrative seed node for the playground schema. Constructed for demonstration only; not derived from any specific community consultation. Scope: schema illustration and pedagogy. Real deployment of any specific practice requires consent from the actual carrier communities.",
+  "carriers": ["unspecified Anishinaabe communities (illustrative reference)"],
+  "content_summary": "Multi-stage layered gravity filtration of surface water using locally available substrates (sand, charcoal, gravel). Knowledge of which substrates suit which source waters, and of how the practice fits the broader land relationship, is held by community practitioners and is not reducible to the layered-stack technique alone.",
+  "constraints_addressed": [
+    "household water clarification from turbid surface sources",
+    "preindustrial water treatment without manufactured inputs"
+  ],
+  "attribution": [
+    "Synthetic illustrative example. Not a record of any specific community's practice. Cite living practitioners directly if real practice is referenced."
+  ],
+  "parent_ids": [],
+  "parallel_solution_ids": ["punjab_terracotta_filter_v1"]
+}
