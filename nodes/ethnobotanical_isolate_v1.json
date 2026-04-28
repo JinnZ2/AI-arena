@@ -1,0 +1,28 @@
+{
+  "id": "ethnobotanical_isolate_v1",
+  "title": "Pharmaceutical isolate aggregated from traditional plant medicines (illustrative)",
+  "regime": {
+    "geography": "global pharmaceutical supply chain",
+    "climate_zone": "any",
+    "population_density": "dense",
+    "technology_level": "industrial",
+    "institutional_context": "corporate"
+  },
+  "transmission": "extracted_aggregated",
+  "validation_depth": "literature",
+  "carrier_consent": "contested",
+  "consent_notes": "Original plant knowledge held by multiple Indigenous and traditional medicine communities. Isolation, patenting, and pharmaceutical aggregation occurred without consent processes recognizable to the source communities. Several source communities have publicly contested the aggregation; others were never consulted. Illustrative seed for the playground schema, not a specific real product.",
+  "carriers": [
+    "multiple unspecified Indigenous and traditional medicine communities — names omitted because the aggregation removed them"
+  ],
+  "content_summary": "An isolated chemical compound said to have active medicinal properties, derived from plant sources used across distinct traditional medicine systems. The compound is not the practice. The surrounding ceremony, dosage tradition, plant relationship, harvest constraints, and ecological knowledge were stripped during isolation. What remains is a molecule and a patent.",
+  "constraints_addressed": [
+    "medicinal use of plant compounds",
+    "household and clinical pharmacology"
+  ],
+  "attribution": [
+    "Synthetic illustrative example representing the class of pharmaceutical isolates derived from traditional medicine systems without consent processes recognized by source communities. Specific real cases exist but are not modeled here."
+  ],
+  "parent_ids": [],
+  "parallel_solution_ids": []
+}
