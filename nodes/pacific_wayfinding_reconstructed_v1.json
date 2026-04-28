@@ -1,0 +1,29 @@
+{
+  "id": "pacific_wayfinding_reconstructed_v1",
+  "title": "Reconstructed long-distance ocean wayfinding (illustrative)",
+  "regime": {
+    "geography": "Pacific oceanic",
+    "climate_zone": "Af",
+    "population_density": "sparse",
+    "technology_level": "preindustrial",
+    "institutional_context": "communal"
+  },
+  "transmission": "reconstructed",
+  "validation_depth": "witnessed",
+  "carrier_consent": "granted_for_scope",
+  "consent_notes": "Some traditional navigators continue the practice; reconstruction work has proceeded with their participation in specific lineages. Scope here is illustrative pedagogy of the schema. Specific star paths, swell signatures, and bird-flight cues vary by lineage and require lineage-specific consent for any actual deployment. Reconstruction is honest about its gaps: not all of what was practiced has been recovered.",
+  "carriers": [
+    "specific Pacific Islander navigator lineages (names omitted because consent for naming is lineage-specific) and the small group of researchers and apprentices working with them"
+  ],
+  "content_summary": "Long-distance ocean navigation using star paths, ocean swell direction and interference patterns, bird flight at dawn and dusk, cloud formations over distant land, and currents. Reconstruction draws on surviving practitioners, oral records, voyage observations, and apprentice training. Reconstructed knowledge is not the same shape as continuously transmitted lived knowledge; gaps remain and are acknowledged.",
+  "constraints_addressed": [
+    "long-distance navigation without instruments",
+    "navigation in oceanic environments",
+    "embodied cognitive integration of ecological signs"
+  ],
+  "attribution": [
+    "Synthetic illustrative example for schema demonstration. Real reconstruction efforts (e.g., Polynesian Voyaging Society and lineage-specific work elsewhere) exist; this node does not represent any specific lineage or research program."
+  ],
+  "parent_ids": [],
+  "parallel_solution_ids": []
+}

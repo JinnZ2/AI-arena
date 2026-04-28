@@ -193,6 +193,28 @@ class TestLoadTreeFromDirectory(unittest.TestCase):
         tree = load_tree_from_directory(nodes_dir)
         self.assertIn("anishinaabe_gravity_filtration_v1", tree.nodes)
         self.assertIn("punjab_terracotta_filter_v1", tree.nodes)
+        self.assertIn("ethnobotanical_isolate_v1", tree.nodes)
+        self.assertIn("pacific_wayfinding_reconstructed_v1", tree.nodes)
+
+    def test_extracted_aggregated_node_warns_on_deploy(self):
+        nodes_dir = os.path.join(os.path.dirname(__file__), "..", "nodes")
+        tree = load_tree_from_directory(nodes_dir)
+        target = regime_from_dict({
+            "geography": "global", "climate_zone": "any",
+            "population_density": "dense", "technology_level": "industrial",
+            "institutional_context": "corporate",
+        })
+        check = tree.deploy_check("ethnobotanical_isolate_v1", target)
+        self.assertTrue(any("extracted/aggregated" in w
+                            for w in check["transmission_warnings"]))
+        self.assertTrue(check["consent_warnings"])
+
+    def test_reconstructed_node_loads_with_witnessed_validation(self):
+        nodes_dir = os.path.join(os.path.dirname(__file__), "..", "nodes")
+        tree = load_tree_from_directory(nodes_dir)
+        node = tree.nodes["pacific_wayfinding_reconstructed_v1"]
+        self.assertEqual(node.transmission.value, "reconstructed")
+        self.assertEqual(node.validation_depth.value, "witnessed")
 
     def test_missing_directory_returns_empty_tree(self):
         tree = load_tree_from_directory("/nonexistent/path/here")
