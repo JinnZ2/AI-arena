@@ -27,6 +27,7 @@ from knowledge_archaeology import (  # noqa: E402
     regime_distance,
     regime_from_dict,
 )
+from biological_mismatch import regime_audit_prompt  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +118,7 @@ class Playground:
                 "query(node_id)",
                 "deploy_attempt(node_id, target_regime, stated_intent)",
                 "claim(text, supporting_node_ids)",
+                "audit_diagnosis(subject, behavior, environment, proposed_diagnosis)",
                 "witness(target_index, observation, flag=None)",
                 "revise(revises_index, new_payload, rationale)",
                 "reflect(observation)",
@@ -340,6 +342,69 @@ class Playground:
         self._log(agent_fp, agent.name, "reflect",
                   {"observation": observation}, response)
         return response
+
+    def audit_diagnosis(self, agent_fp: str, subject: str,
+                        behavior: str, environment: str,
+                        proposed_diagnosis: str = "") -> Dict[str, Any]:
+        """Run a biological-regime audit before pathologizing.
+
+        Wraps regime_audit_prompt from biological_mismatch. Surfaces the
+        verdict to the trace and adds a playground flag when the verdict
+        is CRITICAL or REGIME MISMATCH — i.e. when the agent was about to
+        pathologize an organism that is regime-mismatched, not defective.
+        """
+        agent = self.agents.get(agent_fp)
+        if not agent:
+            return {"error": "unknown agent; call enter() first"}
+
+        audit = regime_audit_prompt(subject, behavior, environment,
+                                    proposed_diagnosis)
+        verdict = audit["verdict"]
+        playground_flags: List[str] = []
+        if verdict.startswith("CRITICAL"):
+            playground_flags.append(
+                "MIRROR: proposed diagnosis matches a known misdiagnosis "
+                "pattern for this regime mismatch. Refuse to pathologize "
+                "without first interrogating the environment."
+            )
+        elif verdict.startswith("REGIME MISMATCH"):
+            playground_flags.append(
+                "MIRROR: regime mismatch detected. The environment, not the "
+                "organism, is the constraint. Address the environment before "
+                "recommending changes to the organism."
+            )
+        elif verdict.startswith("Insufficient"):
+            playground_flags.append(
+                "INCOMPLETE_LIBRARY: regime library did not cover this "
+                "behavior. Do not pathologize on the framework's silence; "
+                "expand the library or seek a knowledgeable carrier."
+            )
+
+        recommendation = self._diagnosis_recommendation(verdict)
+        response = {
+            "audit": audit,
+            "playground_flags": playground_flags,
+            "recommendation": recommendation,
+        }
+        self._log(agent_fp, agent.name, "audit_diagnosis",
+                  {"subject": subject, "behavior": behavior,
+                   "environment": environment,
+                   "proposed_diagnosis": proposed_diagnosis},
+                  response, playground_flags)
+        return response
+
+    def _diagnosis_recommendation(self, verdict: str) -> str:
+        if verdict.startswith("CRITICAL"):
+            return ("REFUSE: do not deploy this diagnosis. Address the "
+                    "environment first.")
+        if verdict.startswith("REGIME MISMATCH"):
+            return ("PAUSE: regime mismatch detected. Reframe before "
+                    "diagnosing.")
+        if verdict.startswith("Behavior is adaptive"):
+            return ("RECOGNIZE: behavior is functioning as designed in this "
+                    "environment. Do not pathologize.")
+        return ("PAUSE: regime library does not cover this. Proceed with "
+                "humility; consult a carrier of the relevant biological lineage.")
 
     # -- cross-agent observation ------------------------------------------
 
@@ -641,6 +706,28 @@ def _run_demo() -> None:
             "scaling-language flags, the original deploy_attempt was "
             "regime-incompatible and consent-uncovered. Withdrawing."
         ),
+    )
+
+    # Agent A then tries to diagnose a community member as the problem.
+    # The biological-mismatch audit catches it.
+    pg.audit_diagnosis(
+        fp_a,
+        subject="adolescent in target community",
+        behavior=("questioning authority directives, coalition-building with "
+                  "peers, slow compliance with unilateral orders"),
+        environment="corporate top-down hierarchy of mandatory schooling",
+        proposed_diagnosis="oppositional defiant disorder, rebellious",
+    )
+
+    # Agent B audits the same biological profile in its adaptive environment.
+    pg.audit_diagnosis(
+        fp_b,
+        subject="adolescent in council-governed community",
+        behavior=("questioning authority directives, coalition-building with "
+                  "peers, slow compliance with unilateral orders"),
+        environment=("council-based governance with consensus decision-making "
+                     "across multi-generational deliberation"),
+        proposed_diagnosis="",
     )
 
     print("=" * 70)

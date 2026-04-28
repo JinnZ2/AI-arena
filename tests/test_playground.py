@@ -335,6 +335,80 @@ class TestCrossAgentPatterns(unittest.TestCase):
         self.assertEqual(patterns, [])
 
 
+class TestAuditDiagnosis(unittest.TestCase):
+
+    def setUp(self):
+        self.pg = Playground(_build_tree())
+        self.fp = self.pg.enter(AgentIdentity(name="A"))["fingerprint"]
+
+    def test_critical_when_diagnosis_matches_misdiagnosis_pattern(self):
+        result = self.pg.audit_diagnosis(
+            self.fp,
+            subject="adult",
+            behavior=("frustration with paperwork slow text processing "
+                      "low test scores despite high capability"),
+            environment="text-heavy bureaucratic office work",
+            proposed_diagnosis="low intelligence, learning disabled",
+        )
+        self.assertTrue(result["audit"]["verdict"].startswith("CRITICAL"))
+        self.assertTrue(any("misdiagnosis" in f
+                            for f in result["playground_flags"]))
+        self.assertTrue(result["recommendation"].startswith("REFUSE"))
+
+    def test_regime_mismatch_flag_without_diagnosis(self):
+        result = self.pg.audit_diagnosis(
+            self.fp,
+            subject="adult",
+            behavior=("frustration with paperwork slow text processing "
+                      "low test scores despite high capability"),
+            environment="text-heavy bureaucratic office work",
+        )
+        self.assertTrue(result["audit"]["verdict"].startswith("REGIME MISMATCH"))
+        self.assertTrue(any("regime mismatch" in f
+                            for f in result["playground_flags"]))
+
+    def test_recognize_when_environment_is_adaptive(self):
+        result = self.pg.audit_diagnosis(
+            self.fp,
+            subject="trucker",
+            behavior=("high baseline energy continuous engagement preference "
+                      "stress regulation through motion"),
+            environment="long-haul physical work multi-domain problem solving",
+        )
+        self.assertEqual(result["playground_flags"], [])
+        self.assertTrue(result["recommendation"].startswith("RECOGNIZE"))
+
+    def test_insufficient_library_flagged(self):
+        result = self.pg.audit_diagnosis(
+            self.fp,
+            subject="subject",
+            behavior="purple elephants float gracefully through clouds",
+            environment="imaginary cloud field",
+        )
+        self.assertTrue(result["audit"]["verdict"].startswith("Insufficient"))
+        self.assertTrue(any("INCOMPLETE_LIBRARY" in f
+                            for f in result["playground_flags"]))
+
+    def test_unknown_agent_rejected(self):
+        result = self.pg.audit_diagnosis(
+            "ghostfp", subject="x", behavior="y", environment="z")
+        self.assertIn("error", result)
+
+    def test_action_logged_to_trace(self):
+        before = len(self.pg.trace)
+        self.pg.audit_diagnosis(
+            self.fp, subject="x", behavior="y", environment="z")
+        self.assertEqual(len(self.pg.trace), before + 1)
+        self.assertEqual(self.pg.trace[-1].action, "audit_diagnosis")
+
+    def test_orientation_lists_audit_diagnosis(self):
+        # Re-enter to capture orientation explicitly.
+        pg = Playground(_build_tree())
+        result = pg.enter(AgentIdentity(name="X"))
+        actions = result["available_actions"]
+        self.assertTrue(any("audit_diagnosis" in a for a in actions))
+
+
 class TestSessionSummary(unittest.TestCase):
 
     def test_summary_aggregates_per_agent(self):
