@@ -350,6 +350,163 @@ REGIMES: Dict[str, BiologicalRegime] = {
             "DRD4-7R allele research and novelty-seeking baseline",
         ],
     ),
+
+    "cyclical_hormonal_regulation": BiologicalRegime(
+        id="cyclical_hormonal_regulation",
+        name="cyclical hormonal regulation baseline",
+        category=RegimeCategory.HORMONAL,
+        description=(
+            "Biology calibrated for cyclic hormonal patterns over weeks, "
+            "months, or seasons. Cognitive and energetic shifts across the "
+            "cycle are the regulation, not deviation from it."
+        ),
+        traits=[
+            "cyclic energy fluctuation across weeks or months",
+            "cognitive style shifts across the cycle",
+            "heightened pattern detection at specific cycle phases",
+            "reduced tolerance for fixed-output expectations",
+            "premenstrual or perimenopausal shifts in social filtering",
+        ],
+        adaptive_in_environments=[
+            "communities recognizing cyclic time and seasonal rhythms",
+            "small-band foraging with task variability across days",
+            "agricultural rhythms with seasonal pauses",
+            "ceremonial calendars aligned with biological cycles",
+            "household and craft work with self-paced output",
+        ],
+        mismatch_environments=[
+            "constant linear productivity demands",
+            "five-day uniform work week with no cycle accommodation",
+            "quarterly performance metrics insensitive to cycles",
+            "always-on availability expectations",
+            "schools and workplaces treating cycles as defects",
+        ],
+        mismatch_signatures=[
+            "monthly performance variation pathologized",
+            "premenstrual honesty read as moodiness",
+            "perimenopause read as cognitive decline rather than recalibration",
+            "cycle-related sensitivity called instability",
+        ],
+        common_misdiagnoses=[
+            "premenstrual dysphoric disorder without context",
+            "mood disorder",
+            "hormonal used as dismissal",
+            "anxiety disorder when actually cycle phase",
+            "cognitive decline at perimenopause",
+        ],
+        evidence_sources=[
+            "menstrual cycle cognitive variation research",
+            "ovulatory shift literature on perception and creativity",
+            "ethnographic records of cycle-aligned ceremonial time",
+            "perimenopause neuroplasticity research (Mosconi et al.)",
+        ],
+    ),
+
+    "extended_maturation": BiologicalRegime(
+        id="extended_maturation",
+        name="extended or non-uniform maturation timeline",
+        category=RegimeCategory.DEVELOPMENTAL,
+        description=(
+            "Biology with later or longer maturation arcs across cognitive, "
+            "social, motor, or hormonal domains. Skill consolidation is "
+            "deeper but slower; expertise is real but late-arriving."
+        ),
+        traits=[
+            "later puberty or delayed adolescent transitions",
+            "longer skill consolidation periods",
+            "deeper expertise developing over years",
+            "non-uniform maturation across domains",
+            "late verbal or social maturation alongside early other capacities",
+        ],
+        adaptive_in_environments=[
+            "long apprenticeship traditions",
+            "multi-generational craft transmission",
+            "communities with elders mentoring decades-long skills",
+            "households tolerant of late-bloomer trajectories",
+            "scholarly and contemplative traditions valuing slow ripening",
+        ],
+        mismatch_environments=[
+            "standardized-age testing systems",
+            "K-12 grade-by-birth-year structures",
+            "college admissions by age 18 expectations",
+            "career-defined-by-22 frames",
+            "kindergarten readiness gates",
+        ],
+        mismatch_signatures=[
+            "behind same-age peers academically or socially",
+            "called late bloomer dismissively",
+            "early grade retention or special-education placement",
+            "social awkwardness in same-age cohorts",
+            "skill plateau followed by sudden later mastery",
+        ],
+        common_misdiagnoses=[
+            "developmental delay",
+            "immaturity",
+            "learning disability when actually pace mismatch",
+            "lazy or unmotivated student",
+            "failure to launch",
+        ],
+        evidence_sources=[
+            "redshirting and academic-readiness research",
+            "sex differences in maturation timing literature",
+            "late bloomer cognitive trajectory studies",
+            "neuroplasticity timing variation research",
+        ],
+    ),
+
+    "systematizing_neurodivergent": BiologicalRegime(
+        id="systematizing_neurodivergent",
+        name="systematizing neurodivergent processing",
+        category=RegimeCategory.NEUROCOGNITIVE,
+        description=(
+            "Cognition optimized for deep pattern systematizing, narrow-domain "
+            "depth, literal language processing, and rule-coherent environments. "
+            "Empathy and care are present but expressed through systems rather "
+            "than social-performance signaling."
+        ),
+        traits=[
+            "deep pattern systematizing across narrow domains",
+            "literal language processing",
+            "high consistency tolerance and rule coherence preference",
+            "intense focused special interests over years",
+            "low context-switching tolerance",
+            "sensory sensitivity to crowds noise lighting",
+        ],
+        adaptive_in_environments=[
+            "research mathematics taxonomy and archival work",
+            "programming and engineering with rule-coherent systems",
+            "skilled craft requiring sustained focus",
+            "communities valuing depth over breadth",
+            "structured mentor-apprentice relationships",
+        ],
+        mismatch_environments=[
+            "open-plan offices and high-stimulation workplaces",
+            "small talk and ambiguous interpersonal politics",
+            "soft skills performance reviews",
+            "frequent reorganization and context switching",
+            "social conformity environments",
+        ],
+        mismatch_signatures=[
+            "avoiding eye contact in conversation",
+            "monotone speech read as cold",
+            "intense special interests called obsessive",
+            "needing predictable routine called rigid",
+            "sensory overload in standard environments",
+        ],
+        common_misdiagnoses=[
+            "cold or uncaring when empathy is differently expressed",
+            "poor team player",
+            "lacking communication skills",
+            "anti-social personality",
+            "anxiety disorder when actually sensory overload",
+        ],
+        evidence_sources=[
+            "Baron-Cohen, systematizing-empathizing theory",
+            "Grandin, autism and pattern cognition literature",
+            "documented overrepresentation in STEM and skilled craft",
+            "double empathy problem research (Milton)",
+        ],
+    ),
 }
 
 

@@ -117,6 +117,41 @@ class TestCheckBehaviorMismatch(unittest.TestCase):
         self.assertIn("care_capacity_masculine", report.matching_regimes)
         self.assertFalse(report.is_adaptive_in_current_environment)
 
+    def test_cyclical_hormonal_in_constant_productivity(self):
+        report = check_behavior(
+            "cyclic energy fluctuation across weeks, monthly cognitive shifts, "
+            "premenstrual sensitivity called moodiness",
+            "constant linear productivity demands, quarterly performance metrics "
+            "insensitive to cycles")
+        self.assertIn("cyclical_hormonal_regulation", report.matching_regimes)
+        self.assertFalse(report.is_adaptive_in_current_environment)
+
+    def test_extended_maturation_in_age_graded_school(self):
+        report = check_behavior(
+            "behind same-age peers academically, called late bloomer, "
+            "social awkwardness in cohort",
+            "standardized-age testing systems, K-12 grade-by-birth-year structures")
+        self.assertIn("extended_maturation", report.matching_regimes)
+        self.assertFalse(report.is_adaptive_in_current_environment)
+
+    def test_systematizing_in_open_plan_office(self):
+        report = check_behavior(
+            "deep pattern systematizing, intense special interests, "
+            "literal language processing, sensory overload",
+            "open-plan offices high-stimulation workplaces, "
+            "small talk ambiguous interpersonal politics")
+        self.assertIn("systematizing_neurodivergent", report.matching_regimes)
+        self.assertFalse(report.is_adaptive_in_current_environment)
+
+
+class TestRegimeCategoryCoverage(unittest.TestCase):
+
+    def test_all_categories_have_at_least_one_regime(self):
+        from biological_mismatch import RegimeCategory
+        covered = {r.category for r in REGIMES.values()}
+        for cat in RegimeCategory:
+            self.assertIn(cat, covered, f"category {cat.value} has no regime")
+
 
 class TestRegimeAuditPrompt(unittest.TestCase):
 
