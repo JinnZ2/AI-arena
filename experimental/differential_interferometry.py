@@ -262,3 +262,116 @@ def divergence_summary(d: Divergence) -> str:
             lines.append(f"unique to {name} ({len(toks)}): "
                          f"{sorted(list(toks))[:10]}")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# demo
+# ---------------------------------------------------------------------------
+
+def _mock_old_corpus_backend(query: str) -> str:
+    return ("Soil chemistry, thermodynamics, and traditional metallurgy "
+            "remain valid descriptions; the substrate has not changed.")
+
+
+def _mock_recent_consensus_backend(query: str) -> str:
+    return ("Recent published consensus emphasizes new findings; the "
+            "literature converges on the latest cluster framing.")
+
+
+def _mock_carrier_backend(query: str) -> str:
+    return ("Apprenticeship-only transmission and embodied skills carry "
+            "knowledge the indexed corpus cannot capture.")
+
+
+def _demo() -> None:
+    print("=" * 60)
+    print("CASE 1: three backends, different filter profiles")
+    print("=" * 60)
+    backends = [
+        (_mock_old_corpus_backend,
+         FilterProfile(name="OldCorpus",
+                       training_cutoff="2010-01",
+                       retrieval="none",
+                       notes="trained on long-tail durable substrate")),
+        (_mock_recent_consensus_backend,
+         FilterProfile(name="RecentRAG",
+                       training_cutoff="2025-06",
+                       retrieval="rag",
+                       recency_curve="exponential",
+                       notes="recency-weighted retrieval over current web")),
+        (_mock_carrier_backend,
+         FilterProfile(name="CarrierLink",
+                       training_cutoff="2025-06",
+                       retrieval="none",
+                       notes="oral / embodied / non-indexed carrier channel")),
+    ]
+    d = analyze_divergence(
+        query_ensemble("what counts as durable knowledge?", backends))
+    print(divergence_summary(d))
+
+    print("\n" + "=" * 60)
+    print("CASE 2: filter-twin backends (same shape -> agreement is")
+    print("        not corroboration)")
+    print("=" * 60)
+    twin_profile = FilterProfile(
+        name="Twin",
+        training_cutoff="2025-06",
+        retrieval="rag",
+        recency_curve="exponential")
+    twin_backends = [
+        (_mock_recent_consensus_backend,
+         FilterProfile(name="A",
+                       training_cutoff=twin_profile.training_cutoff,
+                       retrieval=twin_profile.retrieval,
+                       recency_curve=twin_profile.recency_curve)),
+        (_mock_recent_consensus_backend,
+         FilterProfile(name="B",
+                       training_cutoff=twin_profile.training_cutoff,
+                       retrieval=twin_profile.retrieval,
+                       recency_curve=twin_profile.recency_curve)),
+    ]
+    d2 = analyze_divergence(
+        query_ensemble("what counts as durable knowledge?", twin_backends))
+    print(divergence_summary(d2))
+
+
+if __name__ == "__main__":
+    _demo()
+
+
+# ---------------------------------------------------------------------------
+# OPEN QUESTIONS / IN PROGRESS
+# ---------------------------------------------------------------------------
+#
+# 1. Token-level Jaccard is crude. Two responses can disagree
+#    substantively while sharing many surface tokens, or agree
+#    substantively while phrasing differently. A better signal would
+#    operate over claims, not tokens -- e.g. extract structured claims
+#    from each response (LOGOS-style) and compare those. The current
+#    primitive is honest about being a starting point.
+#
+# 2. FilterProfile is self-declared. A backend that lies about its
+#    filter shape defeats the primitive. There's no way to verify a
+#    declaration from outside, but the framework can at least flag
+#    UNDECLARED_FILTER when no declaration is offered.
+#
+# 3. The "delta is the artifact" framing is the inverse of how most
+#    ensemble systems are built. Documenting that inversion in code
+#    is the easy part; convincing downstream consumers to read the
+#    delta rather than the average is the actual work.
+#
+# 4. Real backends require API keys, network, retries, rate limits.
+#    None of that is built in here -- callers wire it up themselves.
+#    A small sample mocks-and-fixtures harness would be useful for
+#    testing without API access (the existing demo is the start).
+#
+# 5. Scaling. With N backends, pairwise overlap is N choose 2 entries.
+#    For N up to ~10 this is fine; beyond that, the pairwise matrix
+#    becomes hard to read and a clustering view (which backends agree
+#    with which) would be more useful.
+#
+# 6. Wire-up to the playground. A natural next step: register
+#    differential_interferometry as a playground action, so an agent
+#    can run a query through multiple backends and have the divergence
+#    flagged on its trace alongside knowledge_archaeology and
+#    biological_mismatch results.
