@@ -185,3 +185,80 @@ def query_ensemble(
         unique_tokens=unique,
         overlap_matrix=overlap,
     )
+
+
+# ---------------------------------------------------------------------------
+# flag detection
+# ---------------------------------------------------------------------------
+
+LOW_DIVERGENCE_THRESHOLD = 0.7   # pairwise overlap above this -> suspicious
+PROFILE_SIMILARITY_FIELDS = (
+    "training_cutoff", "retrieval", "recency_curve", "citation_floor",
+)
+
+
+def _profiles_too_similar(profiles: List[FilterProfile]) -> bool:
+    """True if all backends declare the same value on every key field."""
+    if len(profiles) < 2:
+        return False
+    first = profiles[0]
+    for other in profiles[1:]:
+        for f in PROFILE_SIMILARITY_FIELDS:
+            if getattr(first, f) != getattr(other, f):
+                return False
+    return True
+
+
+def analyze_divergence(d: Divergence) -> Divergence:
+    """Add flags to a Divergence in place. Returns the same object for
+    convenience.
+
+    Flags:
+      INSUFFICIENT_RESPONSES   fewer than 2 non-erroring responses
+      BACKEND_ERROR            at least one backend raised
+      UNDECLARED_FILTER        at least one backend's profile is_undeclared()
+      FILTER_PROFILE_TOO_SIMILAR  all backends declare matching key fields;
+                               agreement would be filter-twin, not corroboration
+      LOW_DIVERGENCE           every pair overlaps above LOW_DIVERGENCE_THRESHOLD;
+                               agreement is suspicious -- may be shared bias
+    """
+    successful = [r for r in d.responses if r.error is None]
+    if len(successful) < 2:
+        d.flags.append("INSUFFICIENT_RESPONSES")
+
+    if any(r.error for r in d.responses):
+        d.flags.append("BACKEND_ERROR")
+
+    if any(r.profile.is_undeclared() for r in d.responses):
+        d.flags.append("UNDECLARED_FILTER")
+
+    profiles = [r.profile for r in d.responses]
+    if _profiles_too_similar(profiles):
+        d.flags.append("FILTER_PROFILE_TOO_SIMILAR")
+
+    if d.overlap_matrix and all(
+            v > LOW_DIVERGENCE_THRESHOLD for v in d.overlap_matrix.values()):
+        d.flags.append("LOW_DIVERGENCE")
+
+    return d
+
+
+def divergence_summary(d: Divergence) -> str:
+    """Human-readable rendering of a Divergence."""
+    lines = []
+    lines.append(f"query: {d.query}")
+    lines.append(f"backends: {[r.backend for r in d.responses]}")
+    if d.flags:
+        lines.append(f"flags: {', '.join(d.flags)}")
+    if d.overlap_matrix:
+        lines.append("pairwise overlap (Jaccard):")
+        for (a, b), v in sorted(d.overlap_matrix.items()):
+            lines.append(f"  {a} vs {b}: {v:.2f}")
+    if d.shared_tokens:
+        lines.append(f"shared tokens ({len(d.shared_tokens)}): "
+                     f"{sorted(list(d.shared_tokens))[:10]}")
+    for name, toks in d.unique_tokens.items():
+        if toks:
+            lines.append(f"unique to {name} ({len(toks)}): "
+                         f"{sorted(list(toks))[:10]}")
+    return "\n".join(lines)
