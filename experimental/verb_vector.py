@@ -92,3 +92,110 @@ class VerbVector:
         body = ", ".join(f"{n}:{v:.1f}" for n, v in active)
         flag_str = f" flags={self.flags}" if self.flags else ""
         return f"VerbVector({body}{flag_str})"
+
+
+class VerbSpace:
+    """The space defined by a list of axes. Compiles regexes once, then
+    encodes input strings into VerbVectors against that fixed basis."""
+
+    _NEGATION_WINDOW = 30  # chars before a match to scan for negation
+    _NEGATIONS = (" not ", "n't ", " no ", " never ",
+                  "do not", "does not", "did not", "cannot", "can't")
+
+    def __init__(self, axes: Iterable[Axis]):
+        self.axes: List[Axis] = list(axes)
+        self._compile()
+
+    def _compile(self) -> None:
+        self._compiled: List = []
+        for ax in self.axes:
+            patterns = [re.compile(t, re.IGNORECASE) for t in ax.triggers]
+            self._compiled.append((ax, patterns))
+        self.basis = [ax.name for ax in self.axes]
+
+    def add_axis(self, axis: Axis) -> None:
+        self.axes.append(axis)
+        self._compile()
+
+    @staticmethod
+    def _is_negated(text_lower: str, match_start: int) -> bool:
+        window_start = max(0, match_start - VerbSpace._NEGATION_WINDOW)
+        window = text_lower[window_start:match_start]
+        return any(neg in window for neg in VerbSpace._NEGATIONS)
+
+    def _check_degeneracy(self, text: str) -> List[str]:
+        """Flag noun-first / copula-collapsed sentences. The flag is the
+        signal: a downstream consumer needs to know the encoding is lossy.
+        """
+        flags: List[str] = []
+        t = text.strip().lower()
+
+        copula_only = re.match(
+            r"^(the |a |an |this |that )?[\w\s]+?\b"
+            r"(is|are|was|were|be|been|being)\b\s+[\w\s,]+?\.?$",
+            t,
+        )
+        content_verb = re.search(
+            r"\b(flow|carry|carries|carried|bind|bound|switch|recirculate|"
+            r"amplif|decorrelate|couple|condition|derive|reframe|move|"
+            r"send|receive|push|pull|emit|absorb|drive|trigger|cascade|"
+            r"propagate|transmit|mediate|cause|produce|generate|disrupt|"
+            r"loop|reach|cross|exceed|fall|rise|grow|shrink|fold|unfold|"
+            r"shift|change|alter|modulate|gate|filter|select|exchange|"
+            r"share|convert|translate|map|encode|decode|attract|repel)\b",
+            t,
+        )
+        if copula_only and not content_verb:
+            flags.append("COPULA_COLLAPSE")
+
+        nominalizations = len(re.findall(
+            r"\b\w+(?:tion|ment|ness|ity|ism|ance|ence)\b", t,
+        ))
+        verbs_found = len(re.findall(r"\b\w+(?:s|ed|ing)\b", t))
+        if nominalizations >= 3 and nominalizations >= verbs_found:
+            flags.append("NOUN_FIRST_DEGENERATE")
+
+        if not content_verb and not copula_only:
+            flags.append("NO_RELATION_DETECTED")
+
+        return flags
+
+    def encode(self, text: str, source_label: Optional[str] = None) -> VerbVector:
+        """Encode a sentence or short claim into a verb-vector. Each axis
+        sums weight_per_hit per non-negated trigger, capped at 5.0 to
+        prevent a single repeated phrase from dominating.
+        """
+        text_lower = text.lower()
+        components = {ax.name: Component(axis=ax.name, value=0.0)
+                      for ax in self.axes}
+
+        for ax, patterns in self._compiled:
+            comp = components[ax.name]
+            for pat in patterns:
+                for m in pat.finditer(text_lower):
+                    if ax.negation_guard and self._is_negated(text_lower, m.start()):
+                        continue
+                    comp.value = min(5.0, comp.value + ax.weight_per_hit)
+                    snippet = text[max(0, m.start() - 20): m.end() + 20].strip()
+                    comp.evidence.append(f"...{snippet}...")
+
+        return VerbVector(
+            components=components,
+            flags=self._check_degeneracy(text),
+            source=source_label or text,
+            basis=list(self.basis),
+        )
+
+    def encode_paper(self, paper: dict) -> VerbVector:
+        """Encode a structured paper-claim dict. Concatenates title,
+        abstract, claims, notes and runs encode().
+        """
+        parts: List[str] = []
+        for k in ("title", "abstract"):
+            if paper.get(k):
+                parts.append(paper[k])
+        for k in ("claims", "notes"):
+            if paper.get(k):
+                parts.extend(paper[k])
+        return self.encode("  ".join(parts),
+                           source_label=paper.get("title", "untitled"))
