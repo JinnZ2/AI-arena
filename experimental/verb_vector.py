@@ -428,3 +428,177 @@ DEFAULT_AXES = [
 
 def default_space() -> VerbSpace:
     return VerbSpace(DEFAULT_AXES)
+
+
+# ---------------------------------------------------------------------------
+# canonical instances: the four-paper test set
+# ---------------------------------------------------------------------------
+
+K_PLUS_PAPER = {
+    "title": "K+ as ligand (Shimomura et al. 2026)",
+    "abstract": (
+        "Extracellular K+ binds to the ECD-TMD interface of DmAlka, "
+        "a Cys-loop receptor, and induces a mode switch between two "
+        "functionally distinct pore conformations, altering ion "
+        "selectivity and ligand sensitivity. The site coordinates K+ "
+        "via four oxygen atoms in geometry mimicking the K+ "
+        "selectivity filter of canonical K+ channels. The transition "
+        "is allosteric: K+ is reframed as a ligand, not just a "
+        "permeant substrate. The IC50 is 0.645 mM, within "
+        "physiological range. Selectivity is Rb+ ~ K+ > Cs+ >> Na+."
+    ),
+    "claims": [
+        "Mode switching is conditional on K+ occupancy at the binding site.",
+        "Pore selectivity depends on the K+-bound conformational state.",
+        "The mechanism couples extracellular K+ to Cl- conductance.",
+    ],
+}
+
+EDC_PAPER = {
+    "title": "EDC x climate (Brander et al. 2026)",
+    "abstract": (
+        "Endocrine-disrupting chemicals bind hormone receptors at "
+        "low concentrations through structural mimicry. Effects "
+        "amplify via non-monotonic dose response: a whisper "
+        "powerful enough to redirect a hurricane. Warming temperature "
+        "couples synergistically: tissue accumulation rises, "
+        "biomagnification cascades through food webs, effective "
+        "dose crosses developmental thresholds within critical "
+        "windows. Effects propagate transgenerationally through "
+        "epigenetic reprogramming, persisting across generations "
+        "even after exposure ceases."
+    ),
+    "claims": [
+        "Effects recirculate across generations through inherited epigenetic marks.",
+        "Climate change amplifies toxicity via tissue partitioning.",
+        "EDCs are reframed as planetary-scale ligands, not just toxins.",
+    ],
+}
+
+SPIN_PAPER = {
+    "title": "Vector spin separation (Mkhumbuza et al. 2026)",
+    "abstract": (
+        "A radially polarized vector beam with zero spin density at "
+        "the source plane decorrelates into separated circular "
+        "polarization components during paraxial free-space "
+        "propagation, when the Pancharatnam topological charge is "
+        "non-zero. The two components evolve into different modal "
+        "families with distinct Gouy phase and divergence, producing "
+        "a free-space optical Hall effect. The transition occurs at "
+        "the threshold l_p != 0. Spin couples to orbital angular "
+        "momentum; the topological index reframes spin separation "
+        "as propagation-driven rather than focusing-driven."
+    ),
+    "claims": [
+        "Spin components separate spatially under propagation, not at source.",
+        "The effect is conditional on the paraxial regime.",
+        "Topological charge is reframed as the controlling index, not polarization.",
+    ],
+}
+
+INFO_PAPER = {
+    "title": "Free information disrupts Bayesian crowds (Stein et al. 2026)",
+    "abstract": (
+        "In an agent-based model of perfectly Bayesian, honest, "
+        "cooperative truth-seekers, unconstrained information "
+        "exchange reduces group accuracy when pairing is "
+        "homophilous. Evidence recirculates through tight clusters; "
+        "perfect Bayesian update on recirculated observations "
+        "amplifies the cluster's initial leaning. Accuracy collapses "
+        "above a homophily threshold. The carrier in the model is "
+        "binary: world state is A or B."
+    ),
+    "claims": [
+        "Group accuracy declines as exchange capacity increases under homophily.",
+        "The mechanism is recirculation of correlated evidence.",
+        "Effects are conditional on the binary carrier representation.",
+    ],
+}
+
+
+# ---------------------------------------------------------------------------
+# demo
+# ---------------------------------------------------------------------------
+
+def _demo() -> None:
+    space = default_space()
+
+    print("=" * 60)
+    print("PHASE 1: encode the four-paper test set")
+    print("=" * 60)
+    vectors = [
+        space.encode_paper(K_PLUS_PAPER),
+        space.encode_paper(EDC_PAPER),
+        space.encode_paper(SPIN_PAPER),
+        space.encode_paper(INFO_PAPER),
+    ]
+    for v in vectors:
+        v.explain()
+
+    print("\n" + "=" * 60)
+    print("PHASE 2: pairwise cosine similarity")
+    print("=" * 60)
+    print_matrix(vectors)
+
+    print("=" * 60)
+    print("PHASE 3: free-form sentences (incl. degenerate)")
+    print("=" * 60)
+    sentences = [
+        "the river carries sediment downstream until the gradient flattens",
+        "social media is bad",
+        "the implementation of the regulation is a manifestation of the situation",
+        "predator-prey oscillations amplify when habitat connectivity drops below a threshold",
+        "warming temperatures couple to chemical exposure to disrupt fertility across generations",
+    ]
+    for s in sentences:
+        space.encode(s).explain()
+
+
+if __name__ == "__main__":
+    _demo()
+
+
+# ---------------------------------------------------------------------------
+# OPEN QUESTIONS / IN PROGRESS
+# ---------------------------------------------------------------------------
+#
+# 1. Negation window precision. Current 30-char window can produce false
+#    positives ("X does not flow into A, but does bind B" suppresses the
+#    bind match). A dependency-parse-based approach would be more accurate
+#    but would sacrifice the rule-based simplicity.
+#
+# 2. Weight saturation / normalization. Soft cap of 5.0 per axis is
+#    reasonable, but there's no normalization across axes. A long document
+#    naturally scores higher on all axes than a short sentence. Consider a
+#    normalize() method or making document length a factor.
+#
+# 3. Regex overlap. Some triggers overlap between axes (e.g., "propagate"
+#    appears in flows_into and carries_for). Intentional but worth
+#    documenting as a feature, not a bug.
+#
+# 4. Missing verb forms in degeneracy check. _check_degeneracy's content
+#    verb list doesn't include all axis trigger verbs (e.g., "attract",
+#    "repel"). Could auto-generate this list from the axes.
+#
+# 5. encode_paper structure. Currently concatenates all text. Could encode
+#    sections separately and combine, or weight sections (abstract claims
+#    > notes).
+#
+# Edge cases to consider:
+#   - very short inputs ("Flows.") match but may not be meaningful;
+#     NO_RELATION_DETECTED helps here.
+#   - scientific jargon: many domain-specific verbs (phosphorylate,
+#     ubiquitinate, methylate) are missed; needs domain-specific basis.
+#   - multilingual: current implementation assumes English; negation
+#     words and patterns would need parameterization.
+#
+# Possible extensions:
+#   - "bridi-shaped" English: trigger patterns extended to capture
+#     agent / relation / patient / destination as named groups, e.g.
+#         (?P<agent>...)\s+(?P<relation>carries|binds|switches)\s+
+#         (?P<patient>...)(?:\s+(?:to|into|onto)\s+(?P<destination>...))?
+#   - lojban gloss as a parallel encoding: encode both verb-vector and
+#     simplified lojban translation, surface where they diverge.
+#   - RELATION_AMBIGUOUS flag when multiple parses of the same sentence
+#     yield different dominant axes -- flagging where English syntax
+#     fails to disambiguate what lojban grammar would make explicit.
