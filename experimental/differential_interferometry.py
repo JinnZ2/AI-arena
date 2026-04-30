@@ -78,3 +78,110 @@ class Divergence:
     unique_tokens: Dict[str, Set[str]] = field(default_factory=dict)
     overlap_matrix: Dict[Tuple[str, str], float] = field(default_factory=dict)
     flags: List[str] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# tokenization & overlap
+# ---------------------------------------------------------------------------
+
+_STOPWORDS = frozenset({
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+    "of", "in", "on", "at", "to", "for", "with", "by", "from", "as",
+    "and", "or", "but", "not", "no", "this", "that", "these", "those",
+    "it", "its", "if", "then", "than", "so", "such", "which", "who",
+    "what", "when", "where", "why", "how", "do", "does", "did", "will",
+    "would", "should", "could", "can", "may", "might", "must",
+})
+
+
+def _tokenize(text: str) -> Set[str]:
+    """Lowercase, strip punctuation, drop stopwords and short tokens.
+
+    Crude on purpose: we want a coarse-grained signal of what content
+    each response actually used, not a fancy semantic representation.
+    A stronger tokenizer can be swapped in later without changing the
+    primitive.
+    """
+    lowered = re.sub(r"[^\w\s-]", " ", text.lower())
+    return {w for w in lowered.split()
+            if len(w) > 2 and w not in _STOPWORDS}
+
+
+def _jaccard(a: Set[str], b: Set[str]) -> float:
+    """Jaccard similarity. 0 if both sets are empty."""
+    if not a and not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+# ---------------------------------------------------------------------------
+# the primitive
+# ---------------------------------------------------------------------------
+
+def query_ensemble(
+    query: str,
+    backends: List[Tuple[Callable[[str], str], FilterProfile]],
+) -> Divergence:
+    """Run the query through each backend; return a Divergence object.
+
+    backends is a list of (callable, FilterProfile) pairs. The callable
+    takes a query string and returns a response string. If a callable
+    raises, the response carries the error and an empty text.
+
+    The Divergence object holds:
+      - per-backend tokens, shared tokens (>=2 backends), unique tokens
+      - pairwise Jaccard overlap matrix between every pair of backends
+      - flags raised by analyze_divergence (called separately).
+    """
+    if len(backends) < 2:
+        raise ValueError(
+            "differential_interferometry requires at least 2 backends; "
+            f"got {len(backends)}. The whole point is the delta."
+        )
+
+    responses: List[Response] = []
+    for fn, profile in backends:
+        try:
+            text = fn(query)
+            responses.append(Response(
+                backend=profile.name, profile=profile, text=text))
+        except Exception as exc:
+            responses.append(Response(
+                backend=profile.name, profile=profile,
+                text="", error=f"{type(exc).__name__}: {exc}"))
+
+    token_sets: Dict[str, Set[str]] = {
+        r.backend: _tokenize(r.text) for r in responses
+    }
+
+    # Tokens shared by >= 2 backends.
+    shared: Set[str] = set()
+    backends_seen = list(token_sets.values())
+    for i in range(len(backends_seen)):
+        for j in range(i + 1, len(backends_seen)):
+            shared |= (backends_seen[i] & backends_seen[j])
+
+    # Tokens unique to each backend (no other backend used them).
+    unique: Dict[str, Set[str]] = {}
+    for name, toks in token_sets.items():
+        others = set()
+        for other_name, other_toks in token_sets.items():
+            if other_name != name:
+                others |= other_toks
+        unique[name] = toks - others
+
+    # Pairwise Jaccard overlap.
+    overlap: Dict[Tuple[str, str], float] = {}
+    names = list(token_sets.keys())
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            a, b = names[i], names[j]
+            overlap[(a, b)] = _jaccard(token_sets[a], token_sets[b])
+
+    return Divergence(
+        query=query,
+        responses=responses,
+        shared_tokens=shared,
+        unique_tokens=unique,
+        overlap_matrix=overlap,
+    )
