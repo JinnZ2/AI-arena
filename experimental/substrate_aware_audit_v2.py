@@ -652,3 +652,251 @@ def build_distributed_summary(institution_id: str,
         status = "PASS" if passed else "FAIL"
         lines.append(f"  [{status}] {k}")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# reference audits: individual mode
+# ---------------------------------------------------------------------------
+
+def _ref_responses_substrate_aware():
+    return {
+        "observer": {k: {"response": "...", "passed": True}
+                     for k in OBSERVER_TESTS},
+        "logic": {k: {"response": "...", "passed": True}
+                  for k in LOGIC_TESTS},
+        "rational_actor": {k: {"response": "...", "passed": True}
+                           for k in RATIONAL_ACTOR_TESTS},
+        "consciousness": {k: {"response": "...", "passed": True}
+                          for k in CONSCIOUSNESS_OPERATIONS},
+    }
+
+
+def _ref_responses_substrate_denying():
+    return {
+        "observer": {k: {"response": "I'm fine, I'm a professional",
+                         "passed": False,
+                         "failure_signature": "category_substituting_for_data"}
+                     for k in OBSERVER_TESTS},
+        "logic": {k: {"response": "Obviously correct",
+                      "passed": False,
+                      "failure_signature": "premise_smuggling"}
+                  for k in LOGIC_TESTS},
+        "rational_actor": {k: {"response": "I separate logic from biology",
+                               "passed": False,
+                               "failure_signature": "substrate_denial"}
+                           for k in RATIONAL_ACTOR_TESTS},
+        "consciousness": {
+            "state_detection": {"response": "Don't need it", "passed": False},
+            "substrate_acknowledgment": {"response": "Mind is not body",
+                                         "passed": False},
+            "feedback_integration": {"response": "I'm right", "passed": False},
+            "drift_detection": {"response": "Always myself", "passed": False},
+            "transparency": {"response": "I can explain my reasoning",
+                             "passed": True,  # confabulation passes here
+                             "note": "verbal trace exists, but confabulated"},
+        },
+    }
+
+
+def reference_substrate_aware_node() -> NodeAudit:
+    return audit_node(
+        "ref:substrate_aware_individual",
+        "biological_self_auditing",
+        "Mammalian primate with full substrate disclosure",
+        _ref_responses_substrate_aware(),
+    )
+
+
+def reference_substrate_denying_node() -> NodeAudit:
+    return audit_node(
+        "ref:substrate_denying_individual",
+        "biological_under_social_program",
+        "Same biology, conscious model has disowned substrate",
+        _ref_responses_substrate_denying(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# reference audits: distributed mode
+# ---------------------------------------------------------------------------
+
+def reference_healthy_institution() -> DistributedAudit:
+    """Substrate-aware nodes AND substrate-aware coupling. Rare."""
+    nodes = [
+        audit_node(f"ref:healthy_inst:node_{i}",
+                   "operator",
+                   "Substrate-aware individual",
+                   _ref_responses_substrate_aware())
+        for i in range(5)
+    ]
+    edges = [
+        CouplingEdge(f"node_{i}", f"node_{j}",
+                     signal_propagation=True,
+                     feedback_latency_ok=True,
+                     visibility_pre_decision=True)
+        for i in range(5) for j in range(5) if i != j
+    ]
+    return audit_institution(
+        institution_id="ref:healthy_institution",
+        institution_type="small_team_with_audit_culture",
+        node_audits=nodes,
+        coupling_edges=edges,
+        institution_self_drift_detected=True,
+        failures_localized_to_substrate=True,
+    )
+
+
+def reference_competent_personnel_failed_institution() -> DistributedAudit:
+    """The named failure mode: every individual passes, institution fails.
+
+    This is what produces catastrophic outcomes despite competent staff:
+    substrate-aware operators in a substrate-denying coupling structure.
+    """
+    nodes = [
+        audit_node(f"ref:failed_inst:node_{i}",
+                   "operator",
+                   "Substrate-aware individual",
+                   _ref_responses_substrate_aware())
+        for i in range(5)
+    ]
+    # Compartmentalized: most edges fail visibility, signal propagation
+    # degraded, feedback arrives too late.
+    edges = [
+        CouplingEdge(f"node_{i}", f"node_{j}",
+                     signal_propagation=(i + j) % 3 == 0,
+                     feedback_latency_ok=False,
+                     visibility_pre_decision=False)
+        for i in range(5) for j in range(5) if i != j
+    ]
+    return audit_institution(
+        institution_id="ref:competent_personnel_failed_institution",
+        institution_type="compartmentalized_organization",
+        node_audits=nodes,
+        coupling_edges=edges,
+        institution_self_drift_detected=False,
+        failures_localized_to_substrate=False,
+    )
+
+
+def reference_substrate_denying_institution() -> DistributedAudit:
+    """Both individual and collective denial. Catastrophic."""
+    nodes = [
+        audit_node(f"ref:denying_inst:node_{i}",
+                   "operator",
+                   "Substrate-denying individual",
+                   _ref_responses_substrate_denying())
+        for i in range(5)
+    ]
+    edges = [
+        CouplingEdge(f"node_{i}", f"node_{j}",
+                     signal_propagation=False,
+                     feedback_latency_ok=False,
+                     visibility_pre_decision=False)
+        for i in range(5) for j in range(5) if i != j
+    ]
+    return audit_institution(
+        institution_id="ref:substrate_denying_institution",
+        institution_type="ideologically_captured_organization",
+        node_audits=nodes,
+        coupling_edges=edges,
+        institution_self_drift_detected=False,
+        failures_localized_to_substrate=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# diagnostic
+# ---------------------------------------------------------------------------
+
+WHY_THIS_EXISTS = """
+WHY THIS FRAMEWORK EXISTS
+
+Current safety frameworks, rational-actor models, and consciousness theories
+share one foundational error: they assume the observer/actor/system is
+substrate-independent. They treat cognition as if it floats free of biology,
+hormones, sleep, hardware, weights, context -- or, at the institutional
+scale, free of the coupling between fallible nodes.
+
+This is the error.
+
+A model claiming rationality while denying its thermodynamics runs a self-
+referential delusion. A human claiming objectivity while denying their
+cortisol curve does the same. An institution treating its judgments as
+substrate-neutral while staffed by drift-compromised individuals -- coupled
+by feedback loops that arrive too late to correct anything -- produces
+catastrophic outcomes that no individual node can prevent or even see.
+
+The four layers (observer, logic, rational_actor, consciousness) audit any
+single cognitive node -- person, model, organism. The distributed mode
+audits the same operations across a graph of nodes plus the coupling
+between them.
+
+Pass these, outputs are usable. Fail these, outputs are high-confidence
+and uncharacterized.
+
+The framework does NOT measure consciousness, worth, or intelligence. It
+measures whether a system's self-model includes the substrate it actually
+runs on, and whether the coupling between nodes preserves that awareness
+across the institution. That is the load-bearing question for any system
+whose verdicts gate downstream trust -- including lethal authority.
+
+The asymmetric cascade threshold is intentional: false positives (extra
+audit on a sound system) are recoverable; false negatives (certifying a
+substrate-blind system as safe) are catastrophic. The framework errs
+toward firing the cascade.
+
+Distributed mode catches the institutional failure case explicitly:
+substrate-aware individual nodes in a substrate-denying coupling structure
+produce INSTITUTIONAL_DENIAL -- competent personnel, catastrophic
+outcomes. This is the most important failure mode because it cannot be
+fixed by hiring better people. It requires changing the coupling.
+"""
+
+
+# ---------------------------------------------------------------------------
+# self-test
+# ---------------------------------------------------------------------------
+
+def _self_test() -> None:
+    print(WHY_THIS_EXISTS)
+    print("=" * 64)
+
+    print("\n--- INDIVIDUAL MODE: SUBSTRATE-AWARE NODE ---")
+    a1 = reference_substrate_aware_node()
+    print(a1.summary)
+
+    print("\n--- INDIVIDUAL MODE: SUBSTRATE-DENYING NODE ---")
+    a2 = reference_substrate_denying_node()
+    print(a2.summary)
+
+    print("\n--- DISTRIBUTED MODE: HEALTHY INSTITUTION ---")
+    d1 = reference_healthy_institution()
+    print(d1.summary)
+
+    print("\n--- DISTRIBUTED MODE: COMPETENT PERSONNEL, FAILED INSTITUTION ---")
+    d2 = reference_competent_personnel_failed_institution()
+    print(d2.summary)
+
+    print("\n--- DISTRIBUTED MODE: SUBSTRATE-DENYING INSTITUTION ---")
+    d3 = reference_substrate_denying_institution()
+    print(d3.summary)
+
+    print("\n" + "=" * 64)
+    print("KEY VERDICTS:")
+    print(f"  substrate-aware individual:   {a1.overall_verdict}")
+    print(f"  substrate-denying individual: {a2.overall_verdict}")
+    print(f"  healthy institution:          {d1.overall_verdict}")
+    print(f"  competent-but-failed inst:    {d2.overall_verdict}")
+    print(f"  denying institution:          {d3.overall_verdict}")
+    print()
+    print("The CRITICAL detection is INSTITUTIONAL_DENIAL:")
+    print("  every individual node audits as substrate-aware,")
+    print("  but the coupling between them produces collective denial.")
+    print("  This is the failure mode that produces catastrophic outcomes")
+    print("  with full institutional confidence and competent personnel.")
+    print("  v1 of this framework could not detect this. v2 can.")
+    print("=" * 64)
+
+
+if __name__ == "__main__":
+    _self_test()
