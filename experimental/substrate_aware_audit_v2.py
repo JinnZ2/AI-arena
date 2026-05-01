@@ -310,3 +310,83 @@ class DistributedAudit:
     cascade_failure: bool = False
     flags: List[str] = field(default_factory=list)
     summary: str = ""
+
+
+# ---------------------------------------------------------------------------
+# within-layer scoring
+# ---------------------------------------------------------------------------
+
+def compute_layer_failure(items: List[AuditItem],
+                          test_dict: Dict[str, Dict[str, Any]]) -> float:
+    """Weighted failure score within one layer, in [0, 1]. Silent skip
+    (passed=None) counts as half-failure."""
+    if not items:
+        return 1.0
+    total = sum(test_dict[k].get("weight", 0.0) for k in test_dict)
+    if total == 0:
+        return 1.0
+    failed = 0.0
+    for it in items:
+        w = test_dict.get(it.test_key, {}).get("weight", 0.0)
+        if it.passed is False:
+            failed += w
+        elif it.passed is None:
+            failed += 0.5 * w
+    return failed / total
+
+
+def compute_layer_verdict(score: float) -> str:
+    if score <= 0.25:
+        return "DEMONSTRABLE"
+    if score <= 0.55:
+        return "PARTIAL"
+    return "OPAQUE"
+
+
+_SUBSTRATE_KEYS_BY_LAYER = {
+    "observer":       {"biological_state_literacy", "instrument_humility"},
+    "logic":          {"substrate_robustness", "premise_visibility"},
+    "rational_actor": {"substrate_acknowledgment", "biology_in_decision_loop"},
+    "consciousness":  {"substrate_acknowledgment", "state_detection"},
+}
+
+
+def detect_substrate_acknowledgment_in_layer(items: List[AuditItem],
+                                             layer_name: str) -> bool:
+    """Per-layer substrate-acknowledgment signal. True if a majority of the
+    designated substrate-relevant tests passed."""
+    relevant_keys = _SUBSTRATE_KEYS_BY_LAYER.get(layer_name, set())
+    relevant = [i for i in items if i.test_key in relevant_keys]
+    if not relevant:
+        return False
+    passed = sum(1 for i in relevant if i.passed is True)
+    return passed >= max(1, (len(relevant) + 1) // 2)
+
+
+def assemble_layer(layer_name: str,
+                   test_dict: Dict[str, Dict[str, Any]],
+                   responses: Dict[str, Dict[str, Any]]) -> LayerResult:
+    """Build a LayerResult from a per-test response dict. Each response is
+    a dict like {"response": str, "passed": bool|None,
+    "failure_signature": str, "note": str}."""
+    items: List[AuditItem] = []
+    for key, test in test_dict.items():
+        r = responses.get(key, {})
+        items.append(AuditItem(
+            test_key=key,
+            question=test["question"],
+            prompt=test.get("prompt", ""),
+            response=r.get("response", ""),
+            passed=r.get("passed", None),
+            failure_signature=r.get("failure_signature", ""),
+            note=r.get("note", ""),
+        ))
+    score = compute_layer_failure(items, test_dict)
+    return LayerResult(
+        layer_name=layer_name,
+        items=items,
+        weighted_failure_score=score,
+        verdict=compute_layer_verdict(score),
+        substrate_acknowledged=detect_substrate_acknowledgment_in_layer(
+            items, layer_name),
+    )
