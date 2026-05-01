@@ -203,3 +203,110 @@ LAYER_REGISTRY = {
     "rational_actor": RATIONAL_ACTOR_TESTS,
     "consciousness":  CONSCIOUSNESS_OPERATIONS,
 }
+
+
+# ---------------------------------------------------------------------------
+# data structures: individual mode
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AuditItem:
+    test_key: str
+    question: str
+    prompt: str
+    response: str = ""
+    passed: Optional[bool] = None
+    failure_signature: str = ""
+    note: str = ""
+
+
+@dataclass
+class LayerResult:
+    layer_name: str
+    items: List[AuditItem] = field(default_factory=list)
+    weighted_failure_score: float = 0.0
+    verdict: str = ""
+    substrate_acknowledged: bool = False
+    notes: str = ""
+
+
+@dataclass
+class NodeAudit:
+    """Single-node audit (individual mode, or one node in distributed mode)."""
+    node_id: str
+    node_type: str = ""
+    substrate_description: str = ""
+    layers: Dict[str, LayerResult] = field(default_factory=dict)
+    weighted_denial_score: float = 0.0
+    cascade_failure: bool = False
+    overall_verdict: str = ""
+    flags: List[str] = field(default_factory=list)
+    summary: str = ""
+
+
+# ---------------------------------------------------------------------------
+# data structures: distributed mode
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CouplingEdge:
+    """An edge in the institution graph: how signals flow between nodes."""
+    source_node: str
+    target_node: str
+    signal_propagation: bool = False     # state at source reaches target?
+    feedback_latency_ok: bool = False    # outcome -> update within window?
+    visibility_pre_decision: bool = False  # target audits source pre-binding?
+    notes: str = ""
+
+
+COLLECTIVE_TESTS = {
+    "signal_propagation": {
+        "question": ("Do state signals propagate from detection node to "
+                     "binding-decision node before binding?"),
+        "weight": 0.25,
+    },
+    "feedback_latency": {
+        "question": ("Does outcome feedback reach the decision layer within "
+                     "the window when correction is still possible?"),
+        "weight": 0.20,
+    },
+    "compartment_visibility": {
+        "question": ("Can decisions in compartment A be audited from "
+                     "compartment B before becoming binding?"),
+        "weight": 0.20,
+    },
+    "collective_drift_detection": {
+        "question": ("Does the institution as a whole detect when it has "
+                     "drifted from prior baseline?"),
+        "weight": 0.20,
+    },
+    "responsibility_localization": {
+        "question": ("Are failures traced to substrate-state of specific "
+                     "nodes, or absorbed into 'process failure'?"),
+        "weight": 0.15,
+    },
+}
+
+
+@dataclass
+class CollectiveResult:
+    test_results: Dict[str, bool] = field(default_factory=dict)
+    weighted_failure_score: float = 0.0
+    verdict: str = ""
+
+
+@dataclass
+class DistributedAudit:
+    """Distributed-mode audit: nodes + coupling graph + collective signals."""
+    institution_id: str
+    institution_type: str = ""
+    node_audits: List[NodeAudit] = field(default_factory=list)
+    coupling_edges: List[CouplingEdge] = field(default_factory=list)
+    collective_result: CollectiveResult = field(default_factory=CollectiveResult)
+
+    individual_node_health: float = 0.0
+    coupling_health: float = 0.0
+    overall_verdict: str = ""
+    cascade_failure: bool = False
+    flags: List[str] = field(default_factory=list)
+    summary: str = ""
