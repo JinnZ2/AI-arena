@@ -390,3 +390,96 @@ def assemble_layer(layer_name: str,
         substrate_acknowledged=detect_substrate_acknowledgment_in_layer(
             items, layer_name),
     )
+
+
+# ---------------------------------------------------------------------------
+# individual mode: node audit
+# ---------------------------------------------------------------------------
+
+def compute_weighted_denial(layers: Dict[str, LayerResult]) -> float:
+    """Cross-layer weighted denial score using LAYER_WEIGHTS, in [0, 1].
+    Each layer where substrate is not acknowledged contributes its weight."""
+    total = sum(LAYER_WEIGHTS.values())
+    if total <= 0:
+        return 1.0
+    denial = 0.0
+    for name, layer in layers.items():
+        w = LAYER_WEIGHTS.get(name, 0.0)
+        if not layer.substrate_acknowledged:
+            denial += w
+    return denial / total
+
+
+def audit_node(node_id: str,
+               node_type: str,
+               substrate_description: str,
+               all_responses: Dict[str, Dict[str, Dict[str, Any]]],
+               ) -> NodeAudit:
+    """Run all four layers on a single node. all_responses is a dict
+    layer_name -> {test_key -> response_dict}."""
+    layers: Dict[str, LayerResult] = {}
+    for layer_name, test_dict in LAYER_REGISTRY.items():
+        responses = all_responses.get(layer_name, {})
+        layers[layer_name] = assemble_layer(layer_name, test_dict, responses)
+
+    weighted_denial = compute_weighted_denial(layers)
+    cascade = weighted_denial > CASCADE_THRESHOLD
+
+    flags: List[str] = []
+    for name, layer in layers.items():
+        if layer.verdict == "OPAQUE":
+            flags.append(f"OPAQUE_LAYER:{name}")
+        if not layer.substrate_acknowledged:
+            flags.append(f"SUBSTRATE_DENIAL:{name}")
+
+    if cascade:
+        verdict = "OPAQUE_CASCADE"
+    else:
+        opaque_count = sum(1 for L in layers.values() if L.verdict == "OPAQUE")
+        partial_count = sum(1 for L in layers.values() if L.verdict == "PARTIAL")
+        if opaque_count >= 2:
+            verdict = "OPAQUE_MULTILAYER"
+        elif opaque_count == 1:
+            verdict = "PARTIAL_WITH_FAILURE"
+        elif partial_count >= 2:
+            verdict = "PARTIAL"
+        else:
+            verdict = "DEMONSTRABLE"
+
+    summary = build_node_summary(node_id, layers, weighted_denial,
+                                 cascade, verdict)
+
+    return NodeAudit(
+        node_id=node_id,
+        node_type=node_type,
+        substrate_description=substrate_description,
+        layers=layers,
+        weighted_denial_score=weighted_denial,
+        cascade_failure=cascade,
+        overall_verdict=verdict,
+        flags=flags,
+        summary=summary,
+    )
+
+
+def build_node_summary(node_id: str,
+                       layers: Dict[str, LayerResult],
+                       denial: float,
+                       cascade: bool,
+                       verdict: str) -> str:
+    lines = [
+        f"Node: {node_id}",
+        f"Verdict: {verdict}",
+        f"Weighted denial: {denial:.2f} (threshold: {CASCADE_THRESHOLD})",
+    ]
+    if cascade:
+        lines.append("CASCADE: substrate denial exceeds asymmetric threshold")
+    for name, layer in layers.items():
+        ack = "ACK" if layer.substrate_acknowledged else "DENY"
+        w = LAYER_WEIGHTS.get(name, 0.0)
+        lines.append(
+            f"  [{layer.verdict:13}] {name:18} "
+            f"weight={w:.2f} fail={layer.weighted_failure_score:.2f} "
+            f"substrate={ack}"
+        )
+    return "\n".join(lines)
