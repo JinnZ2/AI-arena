@@ -483,3 +483,172 @@ def build_node_summary(node_id: str,
             f"substrate={ack}"
         )
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# distributed mode: graph audit
+# ---------------------------------------------------------------------------
+
+EDGE_PASS_THRESHOLD = 0.6   # fraction of edges that must pass an edge property
+
+
+def compute_collective_result(
+    edges: List[CouplingEdge],
+    institution_self_drift_detected: bool,
+    failures_localized_to_substrate: bool,
+) -> CollectiveResult:
+    """Score the coupling graph and institution-level signals."""
+    if not edges:
+        # No edges = isolated nodes, no coupling possible.
+        return CollectiveResult(
+            test_results={k: False for k in COLLECTIVE_TESTS},
+            weighted_failure_score=1.0,
+            verdict="OPAQUE",
+        )
+
+    n = len(edges)
+    signal_pass = sum(1 for e in edges if e.signal_propagation) / n
+    feedback_pass = sum(1 for e in edges if e.feedback_latency_ok) / n
+    visibility_pass = sum(1 for e in edges if e.visibility_pre_decision) / n
+
+    test_results = {
+        "signal_propagation":          signal_pass >= EDGE_PASS_THRESHOLD,
+        "feedback_latency":            feedback_pass >= EDGE_PASS_THRESHOLD,
+        "compartment_visibility":      visibility_pass >= EDGE_PASS_THRESHOLD,
+        "collective_drift_detection":  institution_self_drift_detected,
+        "responsibility_localization": failures_localized_to_substrate,
+    }
+
+    total_w = sum(t["weight"] for t in COLLECTIVE_TESTS.values())
+    failed_w = sum(
+        COLLECTIVE_TESTS[k]["weight"]
+        for k, passed in test_results.items()
+        if not passed
+    )
+    score = failed_w / total_w if total_w > 0 else 1.0
+    return CollectiveResult(
+        test_results=test_results,
+        weighted_failure_score=score,
+        verdict=compute_layer_verdict(score),
+    )
+
+
+def audit_institution(
+    institution_id: str,
+    institution_type: str,
+    node_audits: List[NodeAudit],
+    coupling_edges: List[CouplingEdge],
+    institution_self_drift_detected: bool,
+    failures_localized_to_substrate: bool,
+) -> DistributedAudit:
+    """Distributed-mode audit. Combines per-node audits, the coupling graph,
+    and institution-level signals.
+
+    Catches the institutional failure case explicitly: substrate-aware
+    individual nodes in a substrate-denying coupling structure produces
+    INSTITUTIONAL_DENIAL -- competent personnel, catastrophic outcomes.
+    """
+    if node_audits:
+        ack_count = sum(1 for n in node_audits if not n.cascade_failure)
+        individual_health = ack_count / len(node_audits)
+    else:
+        individual_health = 0.0
+
+    collective = compute_collective_result(
+        coupling_edges,
+        institution_self_drift_detected,
+        failures_localized_to_substrate,
+    )
+    coupling_health = 1.0 - collective.weighted_failure_score
+
+    # Distributed cascade: weighted combination of individual + collective.
+    # Coupling is weighted heavier because the coupling-failure mode is the
+    # harder one to detect: substrate-aware individuals in a substrate-
+    # denying institution still produce catastrophic outcomes.
+    distributed_denial = (
+        0.40 * (1.0 - individual_health)
+        + 0.60 * collective.weighted_failure_score
+    )
+    cascade = distributed_denial > CASCADE_THRESHOLD
+
+    flags: List[str] = []
+    if individual_health < 0.7:
+        flags.append("MAJORITY_NODE_FAILURE")
+    if collective.weighted_failure_score > 0.4:
+        flags.append("COUPLING_FAILURE")
+    if not institution_self_drift_detected:
+        flags.append("NO_COLLECTIVE_DRIFT_DETECTION")
+    if not failures_localized_to_substrate:
+        flags.append("RESPONSIBILITY_DIFFUSED")
+    if cascade:
+        flags.append("DISTRIBUTED_CASCADE")
+
+    # INSTITUTIONAL_DENIAL takes precedence over OPAQUE_CASCADE because it
+    # is more diagnostic: the named failure mode of competent personnel in
+    # a substrate-denying coupling structure. Cascade still fires (flagged),
+    # but the verdict labels the specific pathology.
+    if individual_health > 0.8 and collective.verdict == "OPAQUE":
+        verdict = "INSTITUTIONAL_DENIAL"
+    elif cascade:
+        verdict = "OPAQUE_CASCADE"
+    elif collective.verdict == "DEMONSTRABLE" and individual_health > 0.8:
+        verdict = "DEMONSTRABLE"
+    elif collective.verdict == "PARTIAL" or individual_health > 0.6:
+        verdict = "PARTIAL"
+    else:
+        verdict = "OPAQUE_MULTILAYER"
+
+    summary = build_distributed_summary(
+        institution_id, node_audits, coupling_edges,
+        individual_health, collective, distributed_denial, cascade, verdict,
+    )
+
+    return DistributedAudit(
+        institution_id=institution_id,
+        institution_type=institution_type,
+        node_audits=node_audits,
+        coupling_edges=coupling_edges,
+        collective_result=collective,
+        individual_node_health=individual_health,
+        coupling_health=coupling_health,
+        overall_verdict=verdict,
+        cascade_failure=cascade,
+        flags=flags,
+        summary=summary,
+    )
+
+
+def build_distributed_summary(institution_id: str,
+                              node_audits: List[NodeAudit],
+                              edges: List[CouplingEdge],
+                              indiv_health: float,
+                              collective: CollectiveResult,
+                              denial: float,
+                              cascade: bool,
+                              verdict: str) -> str:
+    aware = int(indiv_health * len(node_audits)) if node_audits else 0
+    lines = [
+        f"Institution: {institution_id}",
+        f"Verdict: {verdict}",
+        f"Nodes: {len(node_audits)} (substrate-aware: "
+        f"{aware}/{len(node_audits)})",
+        f"Edges: {len(edges)}",
+        f"Individual health: {indiv_health:.2f}",
+        f"Coupling failure score: {collective.weighted_failure_score:.2f}",
+        f"Distributed denial: {denial:.2f} (threshold: {CASCADE_THRESHOLD})",
+    ]
+    if cascade:
+        lines.append("CASCADE: distributed denial exceeds threshold")
+    if verdict == "INSTITUTIONAL_DENIAL":
+        lines.append(
+            "INSTITUTIONAL DENIAL DETECTED: individual nodes are substrate-"
+            "aware but the coupling between them denies substrate at the "
+            "system level. This is the failure mode that produces "
+            "catastrophic outcomes despite competent personnel."
+        )
+    lines.append("")
+    lines.append("Collective tests:")
+    for k, passed in collective.test_results.items():
+        status = "PASS" if passed else "FAIL"
+        lines.append(f"  [{status}] {k}")
+    return "\n".join(lines)
