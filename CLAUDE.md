@@ -8,6 +8,9 @@ not yet implemented. If you are about to implement v2, or modify v1,
 you need to understand which mode you are working in and why the gap
 between them exists.
 
+For setup, run commands, architecture details, agent inventory, and
+how-to guides for adding agents or scenarios, see `DEVELOPMENT.md`.
+
 ## Current state
 
 - `arena.py` implements v1 (adversarial).
@@ -82,7 +85,8 @@ in v1 territory. v2 builds territory maps, not consensus.
 AI-arena/
 ├── README.md              ← updated (documents v1 + v2)
 ├── MODES.md               ← NEW: when to use v1 vs v2
-├── CLAUDE.md              ← updated (this file)
+├── CLAUDE.md              ← updated (this file; v2-implementer guidance)
+├── DEVELOPMENT.md         ← NEW: practical dev guide (setup, run, architecture, agents)
 ├── arena.py               ← v1, unchanged
 ├── AI-argument-arena.md   ← preserved unchanged (v1 docs)
 ├── AI-CEO-sim.md          ← preserved unchanged (v1 docs)

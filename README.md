@@ -42,9 +42,13 @@ Run with:
 python arena.py
 ```
 
-Documentation: `AI-argument-arena.md`, `AI-CEO-sim.md`, `LOGOS.md`,
-`Auditor.md`, `Oracle.md`, `Physics-as-Truth.md`. All preserved
-unchanged.
+For full setup, test commands, architecture details, agent inventory,
+and how-to guides for adding agents or scenarios, see
+`DEVELOPMENT.md`.
+
+Design documentation: `AI-argument-arena.md`, `AI-CEO-sim.md`,
+`LOGOS.md`, `Auditor.md`, `Oracle.md`, `Physics-as-Truth.md`. All
+preserved unchanged.
 
 v1 is appropriate for:
 
