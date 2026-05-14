@@ -153,3 +153,9 @@ familiar game-theoretic frame and re-implementing v1.
 Future contributors — human or AI — working on cross-paradigm
 coordination may find the v1→v2 documentation diff more informative
 than v2 alone.
+
+The preservation of v1 alongside v2 reflects the broader methodology
+of this work — failure events are calibration data, not
+embarrassments to edit out. See
+[CALIBRATION_AS_PERFECTION.md](https://github.com/JinnZ2/JinnZ2/blob/main/CALIBRATION_AS_PERFECTION.md)
+for the framing.
