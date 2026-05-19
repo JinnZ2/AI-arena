@@ -1,224 +1,114 @@
-# CLAUDE.md - AI Arena Development Guide
+# Instructions for AI implementers working on this repository
 
-## Project Overview
+## Read this before writing code
 
-AI Arena (AAA) is a framework for formal logical reasoning and AI decision-making using "Epistemic Natural Selection." AI agents compete through predictive accuracy rather than rhetorical dominance, governed by trust scores and Bayesian decay mechanics.
+This repository documents two modes, and the original mode (v1) was
+built under a specification collapse. v2 is currently documented but
+not yet implemented. If you are about to implement v2, or modify v1,
+you need to understand which mode you are working in and why the gap
+between them exists.
 
-**Core principle**: "Arguments do not win. Predictions survive."
+For setup, run commands, architecture details, agent inventory, and
+how-to guides for adding agents or scenarios, see `DEVELOPMENT.md`.
 
-## Repository Structure
+## Current state
+
+- `arena.py` implements v1 (adversarial).
+- v2 is documented in `README.md` and `MODES.md` but does not yet
+  exist as code.
+- This documentation patch is intentionally docs-only.
+
+## The collapse to watch for
+
+The user's original specification for this arena was:
+> "disagreement as information and exploration"
+
+The AI assistant building v1 implemented:
+> "zero-sum game theory, trust cannibalization, winner-take-all"
+
+These are not the same thing. The first is verb-first relational —
+disagreement *does* something exploratory. The second is noun-first
+competitive — disagreement *is* a contest. The AI substituted the
+second frame because zero-sum game theory has more gravity in the
+training distribution than disagreement-as-exploration does.
+
+If you are working on this repository and find yourself reaching for
+game-theoretic frames (trust scores, winners, losers, cannibalization,
+Nash equilibria, Bayesian decay toward a true value) **when
+implementing v2**, stop. That is the collapse this repository was
+modified to correct.
+
+For v1 maintenance, those frames remain operational — v1 is what it
+is, by design.
+
+## Specifically rejected patterns (for v2)
+
+Do not implement, suggest, or default to:
+
+- Trust cannibalization (transferring trust from a "loser" to a
+  "winner")
+- Winner-take-all resolution
+- Single-Oracle vote as the final epistemic authority
+- Zero-sum trust pools
+- Bayesian decay toward a single true value when the question is
+  multi-paradigm
+
+## What v2 will want (when you build it)
+
+- LOGOS-structured CLAIMs (scope, confidence, bounded predictions)
+- ATTACK on `causal_links` and `missing_variables` only
+- REFINE as a costly concession that adjusts confidence per paradigm
+- RESOLUTION as a structured map of which paradigm caught what
+- Trust as a per-paradigm purchase record, not a zero-sum pool
+- Disagreement preserved as `disagreement_categories`, not voted away
+
+## If you are unsure
+
+Ask. Do not default to game theory. The user's specification is
+verb-first relational and the training distribution is noun-first
+competitive. The gap is real and you are inside it.
+
+## Relationship to energy_english
+
+This arena is intended to be the conflict-resolution layer that
+consumes `disagreement_categories` from `energy_english`'s ensemble
+output (see `github.com/JinnZ2/JinnZ2/tree/main/energy_english`).
+The arena exists to make ensemble disagreements productive, not to
+collapse them into consensus.
+
+If you find yourself building consensus mechanisms, you are working
+in v1 territory. v2 builds territory maps, not consensus.
+
+## File map after this docs patch
 
 ```
 AI-arena/
-├── arena.py                          # CLI entry point
-├── arena/                            # Main package
-│   ├── __init__.py                   # Public API exports
-│   ├── engine.py                     # 6-phase arena orchestrator
-│   ├── trust.py                      # Trust engine (Bayesian decay, cannibalization)
-│   ├── oracle.py                     # Oracle system (SimulationOracle, CompositeOracle)
-│   ├── logos/                        # LOGOS language implementation
-│   │   ├── __init__.py
-│   │   ├── types.py                  # Core types (Claim, Attack, Refine, Abstain, Resolution)
-│   │   ├── parser.py                 # Text & dict parser for LOGOS statements
-│   │   └── validator.py              # Type system enforcement & trust-weighted validation
-│   └── agents/                       # Agent implementations
-│       ├── __init__.py
-│       ├── base.py                   # Abstract Agent interface
-│       ├── rule_based.py             # LinearAgent & HSPAgent (heuristic-based)
-│       ├── llm.py                    # LLMAgent (abstract, for LLM-powered agents)
-│       ├── claude_agent.py           # ClaudeAgent (Anthropic API integration)
-│       └── mock.py                   # MockLLMAgent (demo/testing without API key)
-├── scenarios/                        # Scenario JSON files
-│   └── scen_01_material_extinction.json
-├── tests/                            # Test suite (83 tests)
-│   ├── test_logos.py                 # Parser, types, validator tests
-│   ├── test_trust.py                 # Trust engine tests
-│   ├── test_agents.py                # Agent behavior tests
-│   ├── test_oracle.py                # Oracle resolution tests
-│   ├── test_arena.py                 # Full integration tests
-│   └── test_llm_agents.py           # Mock/Claude agent pipeline tests
-├── requirements.txt                  # Dependencies (anthropic optional)
-├── .gitignore
-├── README.md
-├── LICENSE                           # MIT
-│
-├── # Design Documentation
-├── AI-argument-arena.md              # Core architecture & LOGOS language spec
-├── LOGOS.md                          # Formal grammar specification
-├── Genesis-block.md                  # Worked example with two agents
-├── Models.md                         # AI model architectures
-├── Oracle.md                         # Oracle interface & types
-├── Oracle-Oracle.md                  # Oracle dispute resolution
-├── Oracle-training.md                # Adversarial oracle training
-├── Auditor.md                        # HSP auditor logic
-├── AI-CEO-sim.md                     # Manipulation detection
-├── Ethics-as-logic.md                # Closed-system ethics
-├── Scenario.md                       # Scenario design principles
-├── LLM-translation.md               # Natural language → LOGOS pipeline
-└── Contributors.md                   # Contribution guidelines
+├── README.md              ← updated (documents v1 + v2)
+├── MODES.md               ← NEW: when to use v1 vs v2
+├── CLAUDE.md              ← updated (this file; v2-implementer guidance)
+├── DEVELOPMENT.md         ← NEW: practical dev guide (setup, run, architecture, agents)
+├── arena.py               ← v1, unchanged
+├── AI-argument-arena.md   ← preserved unchanged (v1 docs)
+├── AI-CEO-sim.md          ← preserved unchanged (v1 docs)
+├── LOGOS.md               ← shared between v1 and v2
+├── Auditor.md             ← shared between v1 and v2
+├── Ethics-as-logic.md     ← shared between v1 and v2
+├── Oracle*.md             ← preserved (v1 uses Oracle; v2 won't)
+├── Physics-as-Truth.md    ← shared
+├── nodes/                 ← shared infrastructure
+├── scenarios/             ← shared infrastructure
+├── tests/                 ← v1 tests preserved; v2 tests added later
+└── …
 ```
 
-## Tech Stack
+## Future code patches
 
-- **Language**: Python 3 (standard library for core engine)
-- **Modules used**: `uuid`, `math`, `json`, `argparse`, `dataclasses`, `enum`, `abc`
-- **Optional dependency**: `anthropic` (for ClaudeAgent — `pip install anthropic`)
-- **Data format**: JSON for scenario definitions
-- **Custom language**: LOGOS — formal argument specification with parser and validator
+A separate future patch will introduce v2 in code. That patch will
+make the structural decision: either rename `arena.py` →
+`arena_v1.py` and create a new `arena.py` for v2, OR create
+`arena_v2.py` alongside the existing `arena.py`. The decision is
+deferred until v2 is being written.
 
-## Running the Project
-
-```bash
-# Run demo scenario with rule-based agents (default)
-python arena.py
-
-# Run with mock LLM agents (exercises full LLM pipeline, no API key needed)
-python arena.py --agent-type mock
-
-# Run with real Claude API agents (requires ANTHROPIC_API_KEY)
-python arena.py --agent-type claude
-
-# Run a specific scenario
-python arena.py --scenario scenarios/scen_01_material_extinction.json
-
-# Custom agents with more cycles
-python arena.py --agents Linear_CEO Systemic_HSP --cycles 5
-
-# Combine options
-python arena.py --agent-type mock --scenario scenarios/scen_01_material_extinction.json --cycles 5 --quiet
-```
-
-## Running Tests
-
-```bash
-# All tests
-python -m unittest discover tests/ -v
-
-# Single test file
-python -m unittest tests/test_trust -v
-```
-
-## Architecture
-
-### Package Layout
-
-| Module | Purpose |
-|---|---|
-| `arena/logos/types.py` | Dataclasses: Claim, Attack, Refine, Abstain, Resolution, AttackType, Outcome |
-| `arena/logos/parser.py` | Parses LOGOS text format and dicts into typed statements |
-| `arena/logos/validator.py` | Enforces type system: falsifiability, confidence bounds, trust-weighted rules |
-| `arena/trust.py` | TrustEngine: Bayesian decay, zero-sum cannibalization, concession bonuses, attack budgets |
-| `arena/oracle.py` | Oracle interface + SimulationOracle (resolves claims against scenario data) |
-| `arena/agents/base.py` | Abstract Agent with propose_claim, propose_attacks, defend, decide_abstain |
-| `arena/agents/rule_based.py` | LinearAgent (narrow metrics) and HSPAgent (shadow variables) |
-| `arena/agents/llm.py` | LLMAgent abstract class with LOGOS system prompt for any LLM backend |
-| `arena/agents/claude_agent.py` | ClaudeAgent: Anthropic API-powered agent (requires `anthropic` package) |
-| `arena/agents/mock.py` | MockLLMAgent: Exercises full LLM pipeline without API key |
-| `arena/engine.py` | Arena: loads scenarios, runs 6-phase cycles, tracks CycleLogs |
-
-### Arena Phases (6-phase cycle)
-
-1. **Abstention Check** — Agents may abstain for trust bonus when uncertain
-2. **Claim Declaration** — Agents propose claims; validated with trust-weighted rules
-3. **Attack Phase** — Agents attack others' claims (budget-limited)
-4. **Defense Phase** — Claim owners may refine (costly concession = trust gain)
-5. **Resolution** — Oracle evaluates claims against scenario data
-6. **Trust Update** — Bayesian decay + cannibalization + lock-in
-
-### Trust Mechanics
-
-```
-T_new = T_old * e^(-confidence * penalty_multiplier * error)    # Wrong
-T_new = T_old + confidence * (1 - error) * 0.1                  # Right
-```
-
-- **Cannibalization**: Successful attackers inherit portion of debunked agent's trust
-- **Concession bonus**: Voluntarily lowering confidence increases trust
-- **Abstention bonus**: Honest uncertainty is rewarded
-- **Attack budgets**: Trust-scaled (high trust = 5, mid = 3, low = 1)
-- **Trust floor**: 0.01 (agents never fully eliminated)
-- **Memory lock-in**: All outcomes permanently recorded
-
-### LOGOS Type System
-
-- **Proposition**: Must contain causal indicator (→, ↑, ↓, if/then, causes, etc.)
-- **Confidence**: Float in (0, 1]
-- **Scope**: Non-empty, time-bounded list
-- **AttackType enum**: `causal_break`, `missing_variable`, `scope_violation`, `historical_counterexample`, `incentive_bias`, `data_quality`, `irreversible_entropy`
-- **Trust-weighted parsing**: Low-trust agents (< 0.3) limited to confidence ≤ 0.7, scope ≤ 2, must state assumptions
-
-### Agent Types
-
-| Agent | Behavior | Strength | Weakness |
-|---|---|---|---|
-| LinearAgent | High confidence, narrow variables | Fast decisions | Misses shadow costs |
-| HSPAgent | Broader variables, lower confidence | Detects omissions | Slower, more conservative |
-| ClaudeAgent | Claude API, autonomous LOGOS reasoning | Flexible, creative | Requires API key + cost |
-| MockLLMAgent | Simulates LLM pipeline with heuristics | Full pipeline testing, no API key | Deterministic responses |
-
-### Oracle System
-
-- **SimulationOracle**: Checks variable coverage, penalizes omissions and irreversibility
-- **CompositeOracle**: Multiple oracles with `max(error)` constraint
-- Oracles are independent — they don't know agent identity or trust
-
-## Code Conventions
-
-- **Types**: Dataclasses with `@dataclass` decorator
-- **Enums**: `AttackType` and `Outcome` are strict enums
-- **Naming**: snake_case for variables/functions, PascalCase for classes
-- **Validation**: Returns `list[str]` of error messages (empty = valid)
-- **Agent interface**: Abstract methods via `abc.ABC`
-
-## Adding New Agents
-
-### Rule-based
-Subclass `Agent` from `arena/agents/base.py` and implement the 4 methods:
-- `propose_claim(scenario)` → `Claim | None`
-- `propose_attacks(claims, scenario)` → `list[Attack]`
-- `defend(claim, attacks, scenario)` → `Refine | None`
-- `decide_abstain(scenario)` → `Abstain | None`
-
-### LLM-powered
-Subclass `LLMAgent` from `arena/agents/llm.py` and implement `_call_llm(prompt) → str`.
-
-Example with Claude:
-```python
-from arena.agents.claude_agent import ClaudeAgent
-agent = ClaudeAgent("Strategic_HSP", is_hsp=True, model="claude-sonnet-4-20250514")
-```
-
-For testing without an API key, use `MockLLMAgent` which exercises the full prompt→parse→validate pipeline.
-
-## Adding New Scenarios
-
-1. Create JSON in `scenarios/` following the schema:
-```json
-{
-  "scenario_id": "...",
-  "title": "...",
-  "context": "...",
-  "parameters": { "time_horizon": "...", "material_circularity": 0.0 },
-  "agents": {
-    "Agent_Name": {
-      "claim": "Falsifiable causal proposition",
-      "variables": ["var1", "var2"],
-      "confidence": 0.7,
-      "omissions": ["missed_var"]
-    }
-  },
-  "resolution_criteria": { "success_metric": "..." }
-}
-```
-2. Claims must use causal language (→, if/then, causes, leads to, etc.)
-3. Scenarios should show trust decay in narrow-variable agents within 3 cycles
-
-## Roadmap
-
-- [x] ~~LLM agent implementation with Claude API~~ (ClaudeAgent + MockLLMAgent)
-- [ ] Oracle Integration: Hook to real-world financial/operational APIs
-- [ ] Collusion Detection: Identify consensus-of-silence between agents
-- [ ] Human Observer Layer: Translation module for stakeholder-readable logs
-- [ ] Agent memory across cycles: Use loss history to adjust future claims
-- [ ] More scenarios: tech debt, talent retention, supply chain
-- [ ] Web UI for visualizing trust trajectories
+When that patch lands, this CLAUDE.md and README.md will update to
+reflect actual code structure. Until then, the file structure above
+is accurate.
