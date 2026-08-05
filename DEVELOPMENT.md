@@ -43,6 +43,10 @@ AI-arena/
 │       └── mock.py                   # MockLLMAgent (demo/testing without API key)
 ├── scenarios/                        # Scenario JSON files
 │   └── scen_01_material_extinction.json
+├── experimental/                     # Standalone stdlib-only modules (no arena import)
+│   ├── claim_provenance.py           # Subjective-logic claim provenance: per-source
+│   │                                 # trust, correlation-priced fusion, disagreement maps
+│   └── …                             # other detectors (shared_blind_spot, verb_vector, …)
 ├── tests/                            # Test suite (83 tests)
 │   ├── test_logos.py                 # Parser, types, validator tests
 │   ├── test_trust.py                 # Trust engine tests
