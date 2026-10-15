@@ -57,7 +57,7 @@ AI-arena/
 ├── requirements.txt                  # Dependencies (anthropic optional)
 ├── .gitignore
 ├── README.md
-├── LICENSE                           # MIT
+├── LICENSE                           # CC0 1.0 Universal for owner-authored work; see LICENSE_HISTORY.md
 │
 ├── # Design Documentation
 ├── AI-argument-arena.md              # Core architecture & LOGOS language spec

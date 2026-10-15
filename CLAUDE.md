@@ -164,7 +164,7 @@ This is the heart of the review. The CLAUDE.md exists because an AI assistant co
   title: "AI-arena"
   authors:
     - name: "JinnZ2"
-  license: MIT  # or whichever applies
+  license: CC0-1.0  # owner-authored repository work; see LICENSE_HISTORY.md for exceptions
   date-released: 2024-07-07
   url: "https://github.com/JinnZ2/AI-arena"
   ```

@@ -162,3 +162,26 @@ of this work — failure events are calibration data, not
 embarrassments to edit out. See
 [CALIBRATION_AS_PERFECTION.md](https://github.com/JinnZ2/JinnZ2/blob/main/CALIBRATION_AS_PERFECTION.md)
 for the framing.
+
+---
+
+## License and scope (current)
+
+Owner-authored material in this repository is dedicated to the public domain
+under **CC0 1.0 Universal**; the complete legal code is in
+[LICENSE](LICENSE). This designation reaches only rights held by JinnZ2.
+
+**Exceptions / care required.** The four `nodes/*_v1.json` records are
+author-created, synthetic schema illustrations, but their named cultural
+practices, carrier communities, and lineage-specific knowledge are not claimed
+or relicensed; actual use requires the consent stated in each record.
+`Contributors.md` links to external GitHub user-attachment images whose
+licenses/ownership cannot be established from this repository; the linked
+remote assets are not relicensed. No vendored source, submodule, or nested
+third-party license file is tracked. [LICENSE_HISTORY.md](LICENSE_HISTORY.md)
+records the prior MIT legal text, exact preserved prior scope statement, and
+provenance details.
+
+`READ_ME_THIS_WAY.md` is preserved byte-for-byte as a reading-layer record.
+Its final local MIT/explicit-CC0 scope statement records the earlier licensing
+layout; it does not alter the current root [LICENSE](LICENSE).
