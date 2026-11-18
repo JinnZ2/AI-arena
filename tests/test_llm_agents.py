@@ -172,6 +172,26 @@ class TestMockInArena(unittest.TestCase):
         for attack in logs[0].attacks:
             self.assertIn(attack.target_claim_id, claim_ids)
 
+    def test_mock_statement_ids_distinct_across_agents(self):
+        # ids come from the agent's name, not hash(): distinct for distinct names,
+        # and the same in every process whatever PYTHONHASHSEED is
+        agents = [MockLLMAgent("Linear_CEO"), MockLLMAgent("Systemic_HSP", is_hsp=True)]
+        arena = Arena(agents=agents, max_cycles=3, verbose=False)
+        logs = arena.run(DEMO_SCENARIO)
+        for log in logs:
+            claim_ids = [c.id for c in log.claims]
+            self.assertEqual(len(claim_ids), len(agents))
+            self.assertEqual(len(set(claim_ids)), len(claim_ids))
+            attack_ids = [a.id for a in log.attacks]
+            self.assertEqual(len(set(attack_ids)), len(attack_ids))
+            refine_ids = [r.id for r in log.refinements]
+            self.assertEqual(len(set(refine_ids)), len(refine_ids))
+        self.assertEqual(sorted(c.id for c in logs[0].claims),
+                         ["C-Linear_CEO-1", "C-Systemic_HSP-1"])
+        import inspect
+        import arena.agents.mock as mock
+        self.assertNotIn("hash(", inspect.getsource(mock))
+
     def test_mock_refinements_recorded(self):
         agents = [MockLLMAgent("Linear_CEO"), MockLLMAgent("Systemic_HSP", is_hsp=True)]
         arena = Arena(agents=agents, max_cycles=1, verbose=False)
