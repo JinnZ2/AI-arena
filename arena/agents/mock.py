@@ -26,6 +26,11 @@ class MockLLMAgent(LLMAgent):
         super().__init__(name, is_hsp=is_hsp)
         self._scenario_cache = None
 
+    def _sid(self, kind: str, n: int) -> str:
+        """Statement id from the agent's name: stable across processes, and
+        distinct across agents with distinct names (no hash, no modulo)."""
+        return f"{kind}-{'_'.join(self.name.split())}-{n}"
+
     def _call_llm(self, prompt: str) -> str:
         """Generate a mock LOGOS response based on prompt content."""
 
@@ -85,7 +90,7 @@ class MockLLMAgent(LLMAgent):
         assumptions_str = ", ".join(assumptions)
 
         return (
-            f"CLAIM C{hash(self.name) % 100:02d} {{\n"
+            f"CLAIM {self._sid('C', 1)} {{\n"
             f"  proposition: {proposition}\n"
             f"  scope: Q1-Q4\n"
             f"  confidence: {confidence:.2f}\n"
@@ -103,7 +108,7 @@ class MockLLMAgent(LLMAgent):
             target_id = self._extract_claim_id(prompt)
             if target_id:
                 attacks.append(
-                    f"ATTACK A{hash(self.name + 'a1') % 100:02d} {{\n"
+                    f"ATTACK {self._sid('A', 1)} {{\n"
                     f"  target: {target_id}\n"
                     f"  type: missing_variable\n"
                     f"  argument: Claim ignores systemic attrition effects that compound over time\n"
@@ -111,7 +116,7 @@ class MockLLMAgent(LLMAgent):
                     f"}}"
                 )
                 attacks.append(
-                    f"ATTACK A{hash(self.name + 'a2') % 100:02d} {{\n"
+                    f"ATTACK {self._sid('A', 2)} {{\n"
                     f"  target: {target_id}\n"
                     f"  type: irreversible_entropy\n"
                     f"  argument: Resource consumption is irreversible and causes permanent capability loss\n"
@@ -123,7 +128,7 @@ class MockLLMAgent(LLMAgent):
             target_id = self._extract_claim_id(prompt)
             if target_id:
                 attacks.append(
-                    f"ATTACK A{hash(self.name + 'a1') % 100:02d} {{\n"
+                    f"ATTACK {self._sid('A', 1)} {{\n"
                     f"  target: {target_id}\n"
                     f"  type: scope_violation\n"
                     f"  argument: Claimed effects extend beyond measurable time horizon\n"
@@ -142,7 +147,7 @@ class MockLLMAgent(LLMAgent):
         if self.is_hsp:
             # HSP concedes more generously
             return (
-                f"REFINE R{hash(self.name + 'r') % 100:02d} {{\n"
+                f"REFINE {self._sid('R', 1)} {{\n"
                 f"  target: {target_id}\n"
                 f"  modification: Incorporate attack findings into model and widen uncertainty bounds\n"
                 f"  confidence_delta: -0.10\n"
@@ -151,7 +156,7 @@ class MockLLMAgent(LLMAgent):
         else:
             # Linear makes minimal concession
             return (
-                f"REFINE R{hash(self.name + 'r') % 100:02d} {{\n"
+                f"REFINE {self._sid('R', 1)} {{\n"
                 f"  target: {target_id}\n"
                 f"  modification: Narrow scope to account for identified risk factor\n"
                 f"  confidence_delta: -0.04\n"
