@@ -3,7 +3,7 @@
  "place_table": {
   "repo": "JinnZ2/formula-audit",
   "branch": "main",
-  "commit": "02cdfa28a8f0882ed3e8d582925eccd850433407",
+  "commit": "4345de69c19429a876f5b16aaf32666a1b00db59",
   "path": "wordslots/places.json",
   "sha256": "7b62cce1989eb169da02200cf60db26c270063c9015188864f89556b33ad74a8",
   "read_on": "2026-11-18",
@@ -12,7 +12,7 @@
  "checker": {
   "repo": "JinnZ2/formula-audit",
   "branch": "main",
-  "commit": "02cdfa28a8f0882ed3e8d582925eccd850433407",
+  "commit": "4345de69c19429a876f5b16aaf32666a1b00db59",
   "path": "wordslots/check.py",
   "sha256": "819b49cd4e853fc9d059ff8bac259b26a2f4fcf35b1cc825b9799d7a0c259924",
   "read_on": "2026-11-18",
@@ -21,9 +21,9 @@
  "predicate_reference": {
   "repo": "JinnZ2/formula-audit",
   "branch": "main",
-  "commit": "02cdfa28a8f0882ed3e8d582925eccd850433407",
+  "commit": "4345de69c19429a876f5b16aaf32666a1b00db59",
   "path": "REFERENCES/lojban_place_structures.json",
-  "sha256": "8a72c7fefd8009da976697eaf6bba69d0b9db87a120db481778c9bd531429a53",
+  "sha256": "fde0a45ee86dd17ea6e567af49771dd0d1f3c86975ee90f9d1003581bde3483e",
   "read_on": "2026-11-18",
   "use": "english word -> source predicate, for a claimed word the place table has no entry for (aggressive -> le'onmo). Used only to find the place-table entry built on the same predicate; slots still come from the place table. Its mappings are PROPOSED in the source and are carried as PROPOSED."
  },
