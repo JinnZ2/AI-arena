@@ -46,6 +46,8 @@ AI-arena/
 ├── experimental/                     # Standalone stdlib-only modules (no arena import)
 │   ├── claim_provenance.py           # Subjective-logic claim provenance: per-source
 │   │                                 # trust, correlation-priced fusion, disagreement maps
+│   ├── word_slots.py                 # claim text -> wordslots record (formula-audit, pinned);
+│   │                                 # SLOT_CONFLICT / SLOT_GAP / SENSE_SPLIT / SOURCE_SPLIT
 │   └── …                             # other detectors (shared_blind_spot, verb_vector, …)
 ├── tests/                            # Test suite (83 tests)
 │   ├── test_logos.py                 # Parser, types, validator tests
