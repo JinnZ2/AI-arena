@@ -3,16 +3,16 @@
  "place_table": {
   "repo": "JinnZ2/formula-audit",
   "branch": "main",
-  "commit": "4345de69c19429a876f5b16aaf32666a1b00db59",
+  "commit": "74ceae9b4df2ccbe55b16755d9d871aec88ba446",
   "path": "wordslots/places.json",
-  "sha256": "7b62cce1989eb169da02200cf60db26c270063c9015188864f89556b33ad74a8",
+  "sha256": "c0fe46ea46c486fa3dd20fae4e1c2f3853cadbc6d5daa19c9b894ab351b84e52",
   "read_on": "2026-11-18",
   "use": "the place table (word -> ordered slots, senses). Table entries are PROPOSED in the source and stay PROPOSED here."
  },
  "checker": {
   "repo": "JinnZ2/formula-audit",
   "branch": "main",
-  "commit": "4345de69c19429a876f5b16aaf32666a1b00db59",
+  "commit": "74ceae9b4df2ccbe55b16755d9d871aec88ba446",
   "path": "wordslots/check.py",
   "sha256": "819b49cd4e853fc9d059ff8bac259b26a2f4fcf35b1cc825b9799d7a0c259924",
   "read_on": "2026-11-18",
@@ -21,9 +21,9 @@
  "predicate_reference": {
   "repo": "JinnZ2/formula-audit",
   "branch": "main",
-  "commit": "4345de69c19429a876f5b16aaf32666a1b00db59",
+  "commit": "74ceae9b4df2ccbe55b16755d9d871aec88ba446",
   "path": "REFERENCES/lojban_place_structures.json",
-  "sha256": "fde0a45ee86dd17ea6e567af49771dd0d1f3c86975ee90f9d1003581bde3483e",
+  "sha256": "a65fb88c4f371ca201363bffc9faf7d13fc1e087f852c515b43be565b1271cb7",
   "read_on": "2026-11-18",
   "use": "english word -> source predicate, for a claimed word the place table has no entry for (aggressive -> le'onmo). Used only to find the place-table entry built on the same predicate; slots still come from the place table. Its mappings are PROPOSED in the source and are carried as PROPOSED."
  },
