@@ -18,6 +18,15 @@
   "read_on": "2026-11-18",
   "use": "imported, not copied: read_table and check_claim decide slot states, senses, verdicts and claim status."
  },
+ "predicate_reference": {
+  "repo": "JinnZ2/formula-audit",
+  "branch": "main",
+  "commit": "337289d12d81460c8f11265b8e270fdbc0224e58",
+  "path": "REFERENCES/lojban_place_structures.json",
+  "sha256": "952b0db845cb559bff6c26f7c6e035247da8dad251deb340a5c74c6212661c89",
+  "read_on": "2026-11-18",
+  "use": "english word -> source predicate, for a claimed word the place table has no entry for (aggressive -> le'onmo). Used only to find the place-table entry built on the same predicate; slots still come from the place table. Its mappings are PROPOSED in the source and are carried as PROPOSED."
+ },
  "transport": {
   "repo": "JinnZ2/geometric-to-binary-computational-bridge",
   "branch": "main",

@@ -32,7 +32,7 @@ class TestPins(unittest.TestCase):
 
     def test_reference_entry_names_path_and_hash(self):
         pins = ws.load_pins()
-        for key in ("place_table", "checker", "transport"):
+        for key in ("place_table", "checker", "predicate_reference", "transport"):
             p = pins[key]
             self.assertEqual(len(p["sha256"]), 64)
             self.assertEqual(len(p["commit"]), 40)
@@ -160,6 +160,44 @@ class TestClassify(unittest.TestCase):
         self.assertEqual(len(rep["disagreements"]), 1)
         self.assertEqual(got[0]["same_fill_slots"], ["x1", "x2", "x3"])
         self.assertEqual(got[0]["claim_status"], ["OBSERVED", "PROPOSED"])
+
+    def test_hostile_and_aggressive_pair_by_predicate(self):
+        rep = ws.report([
+            claim("A", 0, '[[hostile x1="the dog" x2="the postman" '
+                          'evidential=observed source_id="s"]]'),
+            claim("B", 1, '[[aggressive x1="the dog" x2="strangers" '
+                          'evidential=observed source_id="s"]]'),
+        ])
+        self.assertEqual(len(rep["disagreements"]), 1)
+        d = rep["disagreements"][0]
+        self.assertEqual(d["category"], "SLOT_CONFLICT")
+        self.assertEqual(d["pair_basis"], "PREDICATE")
+        self.assertEqual(d["slot"], "x2")
+        self.assertEqual(d["words"], ["hostile", "aggressive"])
+        self.assertEqual(d["predicates"], ["le'onmo"])
+        self.assertEqual(d["fillings"], ["the postman", "strangers"])
+        res = rep["claims"][1]["resolved"]
+        self.assertEqual((res["claimed_word"], res["checked_as"], res["predicate"],
+                          res["mapping_status"]),
+                         ("aggressive", "hostile", "le'onmo", "PROPOSED"))
+        self.assertEqual(rep["claims"][1]["claim"]["word"], "aggressive")   # as made
+        self.assertIsNone(rep["claims"][0]["resolved"])
+
+    def test_same_word_pair_basis_is_word(self):
+        rep = ws.report(ws.DEMO_TRACE)
+        self.assertTrue(rep["disagreements"])
+        self.assertEqual({d["pair_basis"] for d in rep["disagreements"]}, {"WORD"})
+
+    def test_different_predicates_are_not_paired(self):
+        rep = ws.report([
+            claim("A", 0, '[[hostile x1="the dog" x2="the postman"]]'),
+            claim("B", 1, '[[near x1="the dog" x2="the gate" x3="2 m"]]')])
+        self.assertEqual(rep["disagreements"], [])
+
+    def test_word_in_neither_table_nor_resolvable_stays_void(self):
+        rep = ws.report([claim("A", 0, '[[cosy x1="the room"]]')])
+        self.assertIsNone(rep["claims"][0]["resolved"])
+        self.assertEqual(rep["claims"][0]["record"]["verdict"], "VOID")
 
     def test_same_agent_is_not_paired(self):
         rep = ws.report([

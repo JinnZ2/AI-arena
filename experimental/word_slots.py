@@ -6,8 +6,9 @@ Word-slot layer for agent claims. A map onto an existing checker, not a second o
   arena claim text  ->  wordslots claim record  ->  wordslots.check.check_claim
                                                     (JinnZ2/formula-audit, imported)
 
-Then, per pair of agents that used the same word, each difference is put in one of
-four bins. The bins say WHERE two claims differ. They do not say which claim is
+Then, per pair of agents whose claims rest on the same word (pair_basis WORD) or on
+the same source predicate of the pinned table (pair_basis PREDICATE: "hostile" and
+"aggressive" both rest on le'onmo), each difference is put in one of four bins. The bins say WHERE two claims differ. They do not say which claim is
 right, and nothing here counts, ranks or resolves agents.
 
   SLOT_CONFLICT   the same slot is filled by both, with different fillings
@@ -36,6 +37,13 @@ WHAT IS READ AND WHAT IS NOT
   A table word found in plain text with no tag becomes a record with no slots
   filled (the checker then lists what is missing). A structured record under
   payload["wordslots"] is passed through unchanged.
+
+  A claimed word the place table has no entry for is looked up in the pinned
+  reference (REFERENCES/lojban_place_structures.json in formula-audit). If exactly
+  one table entry is built on the predicate the reference names, the claim is
+  checked under that entry's slots; the claimed word, the entry used, the predicate
+  and the reference's mapping status (PROPOSED) are kept beside the record. No
+  match, or more than one, and the claim goes to the checker as written.
 
   human_interest and ai_interest (the checker's observer slots) are left null.
 
@@ -135,9 +143,45 @@ def load_wordslots(pins=None, checkout=None):
     return check, words, {"place_table": pins["place_table"], "checker": pins["checker"]}
 
 
+def load_predicate_reference(pins=None, checkout=None):
+    """{english word (lower): [reference rows]} from the pinned reference. Raises NotRun."""
+    pins = pins or load_pins()
+    path = pinned_file(pins["predicate_reference"], checkout)
+    with open(path, encoding="utf-8") as f:
+        rows = json.load(f)["data"]["place_structures"]
+    out = {}
+    for r in rows:
+        if isinstance(r.get("english"), str) and r.get("gismu"):
+            out.setdefault(r["english"].lower(), []).append(r)
+    return out
+
+
+def entry_predicates(entry):
+    """Source predicates a table entry is built on (physics_def is not a predicate)."""
+    preds = {s["source_predicate"] for s in entry["slots"]}
+    preds |= set((entry.get("senses") or {}).values())
+    if entry.get("shape"):
+        preds.add(entry["shape"])
+    return {p for p in preds if p and p != "physics_def"}
+
+
+def resolve_word(word, words, reference):
+    """None, or how a word outside the table reaches a table entry by predicate."""
+    if not isinstance(word, str) or word in words or not reference:
+        return None
+    rows = reference.get(word.lower()) or []
+    hits = sorted({(w, r["gismu"], r.get("mapping_status")) for r in rows
+                   for w, e in words.items() if r["gismu"] in entry_predicates(e)})
+    if len({h[0] for h in hits}) != 1:
+        return None
+    w, gismu, status = hits[0]
+    return {"claimed_word": word, "checked_as": w, "predicate": gismu,
+            "mapping_status": status, "from": "predicate_reference"}
+
+
 # ---- 1. adapter: arena claim text -> wordslots claim record ------------------
 
-def claims_from_text(text, words, source_path=None):
+def claims_from_text(text, words, source_path=None, reference=None):
     """Claim records carried by one piece of claim text.
 
     Tagged claims first; then each table word that appears untagged, with no slots.
@@ -157,7 +201,8 @@ def claims_from_text(text, words, source_path=None):
         out.append(rec)
         tagged.add(word.lower())
     plain = TAG.sub(" ", text or "").lower()
-    for word in words:
+    for word in list(words) + sorted(w for w in (reference or {})
+                                     if resolve_word(w, words, reference)):
         if word.lower() not in tagged and re.search(rf"\b{re.escape(word.lower())}\b", plain):
             rec = {"word": word, "slots": {}}
             if source_path:
@@ -166,7 +211,7 @@ def claims_from_text(text, words, source_path=None):
     return out
 
 
-def claims_from_trace(trace, words):
+def claims_from_trace(trace, words, reference=None):
     """[(agent_name, trace_index, claim record)] from Playground trace entries
     (dicts, as export_trace writes them). Reads claim and revise entries."""
     out = []
@@ -183,17 +228,43 @@ def claims_from_trace(trace, words):
         if given is not None:
             recs = given if isinstance(given, list) else [given]
         else:
-            recs = claims_from_text(payload.get("text"), words, where)
+            recs = claims_from_text(payload.get("text"), words, where, reference)
         for r in recs:
             out.append((e.get("agent_name", "?"), idx, r))
     return out
 
 
-def check_claims(agent_claims, check, words):
-    """Each claim run through the pinned checker. The checker's record is kept whole."""
-    return [{"agent": a, "trace_index": i, "claim": c,
-             "record": check.check_claim(c, words, index=i)}
-            for a, i, c in agent_claims]
+def check_claims(agent_claims, check, words, reference=None):
+    """Each claim run through the pinned checker. The checker's record is kept whole.
+    "claim" is the claim as made; "resolved" says so when it was checked under
+    another word's table entry."""
+    out = []
+    for a, i, c in agent_claims:
+        res = resolve_word(c.get("word"), words, reference) if isinstance(c, dict) else None
+        sent = dict(c, word=res["checked_as"]) if res else c
+        out.append({"agent": a, "trace_index": i, "claim": c, "resolved": res,
+                    "record": check.check_claim(sent, words, index=i)})
+    return out
+
+
+def _word(c):
+    """The word as the agent claimed it."""
+    return c["resolved"]["claimed_word"] if c.get("resolved") else c["record"]["word"]
+
+
+def _predicates(c):
+    rec = c["record"]
+    return {x["source_predicate"] for x in (rec["slots"] or [])} - {"physics_def", None}
+
+
+def pair_basis(a, b):
+    """WORD, PREDICATE, or None (not paired)."""
+    wa, wb = _word(a), _word(b)
+    if not isinstance(wa, str) or not isinstance(wb, str):
+        return None
+    if wa.lower() == wb.lower():
+        return "WORD"
+    return "PREDICATE" if _predicates(a) & _predicates(b) else None
 
 
 # ---- 2. where two claims differ ----------------------------------------------
@@ -210,13 +281,17 @@ def _sense(rec):
     return rec.get("sense") if rec.get("sense_field") == "sense" else rec.get("reading")
 
 
-def classify_pair(a, b):
-    """Differences between two checked claims on the same word. No bin is ordered
-    above another and neither side is marked as the one to keep."""
+def classify_pair(a, b, basis="WORD"):
+    """Differences between two checked claims paired by word or by predicate. No bin
+    is ordered above another and neither side is marked as the one to keep."""
     ra, rb = a["record"], b["record"]
     who = [{"agent": a["agent"], "trace_index": a["trace_index"]},
            {"agent": b["agent"], "trace_index": b["trace_index"]}]
-    base = {"word": ra["word"], "agents": who}
+    base = {"word": _word(a), "agents": who, "pair_basis": basis}
+    if basis == "PREDICATE":
+        base["words"] = [_word(a), _word(b)]
+        base["predicates"] = sorted(_predicates(a) & _predicates(b))
+        base["resolved"] = [a.get("resolved"), b.get("resolved")]
     if ra["slots"] is None or rb["slots"] is None:
         return [dict(base, category="NOT_COMPARED",
                      reason=[r["void_reason"] for r in (ra, rb)])]
@@ -229,8 +304,12 @@ def classify_pair(a, b):
                         not_compared_slots=[x["name"] for x in ra["slots"] if x["senses"]]))
     missing_a, missing_b = set(ra["missing_required"]), set(rb["missing_required"])
     same = []
-    for xa, xb in zip(ra["slots"], rb["slots"]):
+    slots_b = {x["name"]: x for x in rb["slots"]}
+    for xa in ra["slots"]:
         name = xa["name"]
+        xb = slots_b.get(name)
+        if xb is None or xa["source_predicate"] != xb["source_predicate"]:
+            continue                       # not the same place of the same predicate
         if split and xa["senses"]:
             continue                       # a sense-bound slot is asked under one sense only
         fa, fb = xa["slot_state"] == "FILLED", xb["slot_state"] == "FILLED"
@@ -258,17 +337,19 @@ def classify_pair(a, b):
 
 
 def classify(checked):
-    """Every cross-agent pair of claims on the same word."""
+    """Every cross-agent pair of claims on the same word or the same source predicate."""
     out = []
     for i in range(len(checked)):
         for j in range(i + 1, len(checked)):
             a, b = checked[i], checked[j]
             if a["agent"] == b["agent"]:
                 continue
-            wa, wb = a["record"]["word"], b["record"]["word"]
-            if not isinstance(wa, str) or not isinstance(wb, str) or wa.lower() != wb.lower():
-                continue
-            out += classify_pair(a, b)
+            basis = pair_basis(a, b)
+            if basis is None and a["record"]["slots"] is None and b["record"]["slots"] is None \
+                    and isinstance(_word(a), str) and _word(a) == _word(b):
+                basis = "WORD"
+            if basis:
+                out += classify_pair(a, b, basis)
     return out
 
 
@@ -363,9 +444,11 @@ def report(trace, checkout=None, pins=None):
     pinned file cannot be read as pinned."""
     try:
         check, words, used = load_wordslots(pins, checkout)
+        reference = load_predicate_reference(pins, checkout)
+        used["predicate_reference"] = (pins or load_pins())["predicate_reference"]
     except NotRun as e:
         return {"state": "NOT_RUN", "reason": str(e)}
-    checked = check_claims(claims_from_trace(trace, words), check, words)
+    checked = check_claims(claims_from_trace(trace, words, reference), check, words, reference)
     dis = classify(checked)
     return {"state": "RUN", "tool": check.VERSION, "pins": used,
             "claims": checked,
@@ -388,7 +471,8 @@ def transport_payload(rep):
             "category_counts": rep["category_counts"],
             "slot_gap_counts": rep["slot_gap_counts"],
             "disagreements": [
-                {k: v for k, v in d.items() if k not in ("role",)} for d in rep["disagreements"]],
+                {k: v for k, v in d.items() if k not in ("role", "resolved")}
+                for d in rep["disagreements"]],
             "correlated_silence": {w: [s["slot"] for s in v["correlated_silence"]]
                                    for w, v in rep["slot_silence"].items()}}
 
@@ -430,14 +514,18 @@ def render(rep):
     out = [f"claims read: {len(rep['claims'])}   tool: {rep['tool']}"]
     for c in rep["claims"]:
         r = c["record"]
-        out.append(f"  {c['agent']:<10} trace[{c['trace_index']}] {r['word']!r} -> {r['verdict']}"
+        as_ = f" (checked as {r['word']!r} via {c['resolved']['predicate']})" \
+            if c.get("resolved") else ""
+        out.append(f"  {c['agent']:<10} trace[{c['trace_index']}] {_word(c)!r}{as_} -> "
+                   f"{r['verdict']}"
                    + (f" missing {r['missing_required']}" if r["missing_required"] else "")
                    + (f" ({r['void_reason']})" if r["void_reason"] else ""))
     out.append("where claims differ:")
     for d in rep["disagreements"]:
         names = " / ".join(a["agent"] for a in d["agents"])
         extra = {k: v for k, v in d.items() if k not in ("category", "word", "agents")}
-        out.append(f"  {d['category']:<13} {d['word']:<6} {names}: {json.dumps(extra)}")
+        out.append(f"  {d['category']:<13} {d['word']:<6} {names}: "
+                   f"{json.dumps(extra, ensure_ascii=False)}")
     out.append(f"counts: {rep['category_counts']}")
     for word, w in rep["slot_silence"].items():
         for s in w["correlated_silence"]:
