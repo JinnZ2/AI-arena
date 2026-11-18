@@ -1,0 +1,39 @@
+{
+ "note": "Pins for experimental/word_slots.py. Nothing here is a copy of the pinned files: the adapter reads each one at run time from a sibling checkout and refuses to run on a sha256 mismatch. Co-authored (JinnZ2 + Claude). CC0.",
+ "place_table": {
+  "repo": "JinnZ2/formula-audit",
+  "branch": "main",
+  "commit": "337289d12d81460c8f11265b8e270fdbc0224e58",
+  "path": "wordslots/places.json",
+  "sha256": "7b62cce1989eb169da02200cf60db26c270063c9015188864f89556b33ad74a8",
+  "read_on": "2026-11-18",
+  "use": "the place table (word -> ordered slots, senses). Table entries are PROPOSED in the source and stay PROPOSED here."
+ },
+ "checker": {
+  "repo": "JinnZ2/formula-audit",
+  "branch": "main",
+  "commit": "337289d12d81460c8f11265b8e270fdbc0224e58",
+  "path": "wordslots/check.py",
+  "sha256": "819b49cd4e853fc9d059ff8bac259b26a2f4fcf35b1cc825b9799d7a0c259924",
+  "read_on": "2026-11-18",
+  "use": "imported, not copied: read_table and check_claim decide slot states, senses, verdicts and claim status."
+ },
+ "predicate_reference": {
+  "repo": "JinnZ2/formula-audit",
+  "branch": "main",
+  "commit": "337289d12d81460c8f11265b8e270fdbc0224e58",
+  "path": "REFERENCES/lojban_place_structures.json",
+  "sha256": "952b0db845cb559bff6c26f7c6e035247da8dad251deb340a5c74c6212661c89",
+  "read_on": "2026-11-18",
+  "use": "english word -> source predicate, for a claimed word the place table has no entry for (aggressive -> le'onmo). Used only to find the place-table entry built on the same predicate; slots still come from the place table. Its mappings are PROPOSED in the source and are carried as PROPOSED."
+ },
+ "transport": {
+  "repo": "JinnZ2/geometric-to-binary-computational-bridge",
+  "branch": "main",
+  "commit": "e8b7d12fa3a1d59c9ce25da1d573d5e6f17e58dc",
+  "path": "experiments/experiment_bridge/v1_1/wire.py",
+  "sha256": "f286447857b10b8f8021218df390124dd269fd9358440437be509014346705d7",
+  "read_on": "2026-11-18",
+  "use": "optional. encode_record / decode_record only: the EB01 fixed-width record (16,460 bytes) the v1.1 COBOL copybook describes. The COBOL round trip itself (cobc) is not run from here, and the original generator (evidence/generate_copybook_as_received.py) is not used."
+ }
+}

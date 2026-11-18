@@ -136,6 +136,49 @@ annihilation. The territory map updates.
 
 ---
 
+## Word-slot layer (experimental)
+
+Note 2026-11-18, co-authored (JinnZ2 + Claude). CI (`.github/workflows/ci.yml`, Python 3.10 and 3.13) checks out both pinned siblings and fails on any skip. `experimental/word_slots.py` maps agent
+claim text onto the wordslots checker in JinnZ2/formula-audit and says where two agents'
+claims on the same word differ. It imports that checker; it holds no place table and no
+copy of the checker's logic. Paths, commits and sha256 are pinned in
+`REFERENCES/wordslots_place_table.json`; a missing checkout or a hash mismatch is
+`NOT_RUN` with the reason.
+
+| bin | what it marks |
+|---|---|
+| `SLOT_CONFLICT` | the same slot filled by both agents, with different fillings |
+| `SLOT_GAP` | one agent fills a slot the other leaves empty (`VOID`, or `DEGRADED` when it was required) |
+| `SENSE_SPLIT` | different senses of the word (safe: `PROTECTED` vs `NOT_PERILOUS`) |
+| `SOURCE_SPLIT` | same filling, different source or evidential |
+
+Two claims are paired when they use the same word (`pair_basis: WORD`) or rest on the
+same source predicate of the pinned table (`pair_basis: PREDICATE`). A claimed word the
+place table has no entry for ("aggressive") is looked up in formula-audit's pinned
+`REFERENCES/lojban_place_structures.json`; if exactly one table entry is built on the
+predicate it names (le'onmo → "hostile"), the claim is checked under that entry's slots,
+and the claimed word, the entry used and the reference's mapping status (PROPOSED) are
+kept beside the record.
+
+The bins locate a difference. They do not rule on which claim holds, and no agent is
+counted up, ranked or resolved. A slot every agent leaves empty produces no difference
+at all, so it is passed to `experimental/shared_blind_spot.py` as correlated silence.
+
+Fillings are taken only from a tag in the claim text, never from prose:
+`[[safe x1="the bridge" x2="collapse" x3="pedestrians" sense=PROTECTED evidential=observed source_id="inspection"]]`.
+The checker's `human_interest` / `ai_interest` slots are left null.
+
+Optional transport: `to_bridge_record()` packs a report into one experiment_bridge v1.1
+EB01 record (JinnZ2/geometric-to-binary-computational-bridge, pinned) and decodes it back.
+Byte envelope only; the COBOL round trip is not run from here and the original copybook
+generator is not used.
+
+```sh
+python experimental/word_slots.py          # demo; needs formula-audit cloned beside this repo
+python -m unittest tests.test_word_slots   # table-dependent tests skip without the checkout
+python tests/run_counts.py                 # whole suite; prints passed / skipped / NOT_RUN
+```
+
 ## Why both modes are documented before v2 exists in code
 
 This repository is part of a larger longitudinal record

@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ai-arena
+      # Siblings at the commits pinned in REFERENCES/wordslots_place_table.json.
+      # experimental/word_slots.py checks each file's sha256 itself.
+      - uses: actions/checkout@v4
+        with:
+          repository: JinnZ2/formula-audit
+          ref: 337289d12d81460c8f11265b8e270fdbc0224e58
+          path: formula-audit
+      - uses: actions/checkout@v4
+        with:
+          repository: JinnZ2/geometric-to-binary-computational-bridge
+          ref: e8b7d12fa3a1d59c9ce25da1d573d5e6f17e58dc
+          path: geometric-to-binary-computational-bridge
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Full suite, counts printed, any skip fails
+        working-directory: ai-arena
+        run: python tests/run_counts.py --require-zero-skipped
