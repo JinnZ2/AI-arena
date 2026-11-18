@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: JinnZ2/formula-audit
-          ref: 74ceae9b4df2ccbe55b16755d9d871aec88ba446
+          ref: c1acb599f49950285b92ea7c12e59cfff289dbd0
           path: formula-audit
       - uses: actions/checkout@v4
         with:
