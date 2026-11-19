@@ -187,10 +187,31 @@ class TestMockInArena(unittest.TestCase):
             refine_ids = [r.id for r in log.refinements]
             self.assertEqual(len(set(refine_ids)), len(refine_ids))
         self.assertEqual(sorted(c.id for c in logs[0].claims),
-                         ["C-Linear_CEO-1", "C-Systemic_HSP-1"])
+                         ["C:Linear_CEO:1", "C:Systemic_HSP:1"])
         import inspect
         import arena.agents.mock as mock
         self.assertNotIn("hash(", inspect.getsource(mock))
+
+    def test_mock_statement_ids_do_not_collide_on_separator_or_whitespace(self):
+        sid = lambda name, kind, n: MockLLMAgent(name)._sid(kind, n)
+        # "-" in a name cannot shift into another part
+        self.assertNotEqual(sid("b-c", "a", 1), sid("c", "ab", 1))
+        self.assertNotEqual(sid("X-1", "C", 1), sid("X", "C", 1))
+        self.assertNotEqual(sid("X:1", "C", 2), sid("X", "C", 1))
+        # whitespace is escaped, not folded onto "_"
+        self.assertNotEqual(sid("a b", "C", 1), sid("a_b", "C", 1))
+        self.assertNotEqual(sid("a  b", "C", 1), sid("a b", "C", 1))
+        self.assertNotEqual(sid("a%20b", "C", 1), sid("a b", "C", 1))
+        for name in ("a b", "a\tb", "x:y", "{z}", ""):
+            i = sid(name, "C", 1)
+            self.assertEqual(len(i.split()), 1)             # one token for the parser
+            self.assertEqual(i.count(":"), 2)
+            self.assertNotIn("{", i)
+        with self.assertRaises(ValueError):                # the old colliding pair is refused
+            sid("c", "a-b", 1)
+        ids = {sid(nm, k, n) for nm in ("b-c", "c", "b", "a b", "a_b", "X", "X-1", "X:1")
+               for k in ("C", "A", "R") for n in (1, 2)}
+        self.assertEqual(len(ids), 8 * 3 * 2)
 
     def test_mock_refinements_recorded(self):
         agents = [MockLLMAgent("Linear_CEO"), MockLLMAgent("Systemic_HSP", is_hsp=True)]
