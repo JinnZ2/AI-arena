@@ -8,6 +8,7 @@ The mock responses are deterministic for a given scenario, making
 them ideal for testing the full LLM pipeline (prompt → LOGOS parse → validate).
 """
 
+from urllib.parse import quote
 from typing import Optional
 
 from arena.logos.types import Claim, Attack, Refine, Abstain, AttackType
@@ -27,9 +28,17 @@ class MockLLMAgent(LLMAgent):
         self._scenario_cache = None
 
     def _sid(self, kind: str, n: int) -> str:
-        """Statement id from the agent's name: stable across processes, and
-        distinct across agents with distinct names (no hash, no modulo)."""
-        return f"{kind}-{'_'.join(self.name.split())}-{n}"
+        """Statement id from the agent's name: stable across processes (no
+        hash, no modulo). The name is percent-encoded with nothing left
+        unescaped but letters, digits and "_.-~", so the id has no whitespace
+        and no ":" from the name; ":" separates the three parts. Two ids are
+        equal only when kind, name and n are all equal. kind is letters and
+        digits only. n is fixed per statement slot, not a counter: an agent
+        reuses the same id each cycle. Two agents with the same name get the
+        same ids."""
+        if not kind.isalnum():
+            raise ValueError(f"statement kind must be letters and digits: {kind!r}")
+        return f"{kind}:{quote(self.name, safe='')}:{int(n)}"
 
     def _call_llm(self, prompt: str) -> str:
         """Generate a mock LOGOS response based on prompt content."""
